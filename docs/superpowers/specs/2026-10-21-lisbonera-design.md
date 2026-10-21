@@ -185,3 +185,18 @@ Actions. Manual client checklist in `docs/clients.md`.
 Deploy-to-Cloudflare button plus `pnpm setup && pnpm deploy`. README documents Access setup and secrets
 (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ADMIN_EMAIL`, `ENCRYPTION_KEY`, optional `TRAKT_CLIENT_ID`,
 `TRAKT_CLIENT_SECRET`).
+
+## Changes during implementation
+
+- App passwords are random (~119 bits) and stored as SHA-256, not PBKDF2: PBKDF2 at 100k iterations exceeds the
+  free plan's 10 ms CPU budget, and a random secret does not need key stretching.
+- `wrangler.jsonc` points `main` at `src/worker.ts`; the SvelteKit adapter reads `wrangler.adapter.jsonc` so it
+  writes its worker to `.svelte-kit/cloudflare/_worker.js`, which `wrangler.jsonc` aliases as `sveltekit-worker`.
+- Dashboard server code reads bindings from `cloudflare:workers` (adapter-cloudflare 8 no longer fills
+  `platform` in dev).
+- Trakt client credentials are entered in the dashboard and stored encrypted in D1 instead of being secrets, so
+  connecting a provider needs no redeploy. Required secrets: `ENCRYPTION_KEY`, `ACCESS_TEAM_DOMAIN`,
+  `ACCESS_AUD`, `ADMIN_EMAIL`.
+- Libraries are capped at 500 titles.
+- The scrobble provider interface reads `playback`, `watchedMovies`, `showProgress` and `recentShows` separately
+  instead of one large snapshot, to keep JSON parsing inside the CPU budget.

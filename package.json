@@ -15,7 +15,7 @@
 		"test:unit": "vitest",
 		"test": "vitest run",
 		"gen": "wrangler types --strict-vars=false",
-		"deploy": "pnpm build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+		"deploy": "pnpm build && wrangler deploy && wrangler d1 migrations apply DB --remote",
 		"db:migrate": "wrangler d1 migrations apply DB --local"
 	},
 	"devDependencies": {
@@ -65,5 +65,7 @@
 	"dependencies": {
 		"jose": "^6.2.13",
 		"zod": "^4.6.7"
-	}
+	},
+	"license": "MIT",
+	"packageManager": "pnpm@12.6.0"
 }
