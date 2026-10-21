@@ -115,6 +115,7 @@ export async function seed(): Promise<void> {
 		env.DB.prepare('DELETE FROM app_passwords'),
 		env.DB.prepare('DELETE FROM scrobble_accounts'),
 		env.DB.prepare('DELETE FROM settings'),
+		env.DB.prepare('DELETE FROM images'),
 		env.DB.prepare(
 			"INSERT INTO addons (id, url, manifest, enabled, position) VALUES ('test', ?, ?, 1, 0)"
 		).bind(ADDON_URL, JSON.stringify(manifest)),

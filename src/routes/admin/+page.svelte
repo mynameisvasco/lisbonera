@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import CopyButton from '#lib/components/copy-button.svelte';
+	import EmptyState from '#lib/components/empty-state.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
+	import Rows from '#lib/components/rows.svelte';
+	import Section from '#lib/components/section.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
 	import Poster from '#lib/components/poster.svelte';
-	import { timeAgo } from '#lib/format.js';
+	import { timeAgo, TYPE_LABEL } from '#lib/format.js';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
 	import CircleIcon from 'phosphor-svelte/lib/Circle';
 	import CaretRightIcon from 'phosphor-svelte/lib/CaretRight';
@@ -32,7 +36,6 @@
 		}
 	]);
 	const pending = $derived(setup.some((step) => !step.done));
-	const typeLabel = { movie: 'Movies', series: 'Series', mixed: 'Mixed' } as const;
 </script>
 
 <svelte:head><title>Overview · Lisbonera</title></svelte:head>
@@ -75,14 +78,13 @@
 </PageHeader>
 
 {#if pending}
-	<section class="mb-12" aria-labelledby="setup">
-		<h2 id="setup" class="mb-2 text-[13px] font-medium text-muted-foreground">Setup</h2>
-		<ol class="divide-y border-y">
+	<Section id="setup" title="Setup">
+		<Rows ordered>
 			{#each setup as step (step.label)}
 				<li>
 					<a
 						href={resolve(step.route)}
-						class="group flex items-center gap-3 py-3 text-sm"
+						class="group flex min-h-10 items-center gap-3 py-3 text-sm"
 						aria-label="{step.label}{step.done ? ' (done)' : ''}"
 					>
 						{#if step.done}
@@ -95,40 +97,37 @@
 								>{step.label}</span
 							>
 							{#if !step.done}
-								<span class="block text-xs text-muted-foreground sm:ml-2 sm:inline"
-									>{step.detail}</span
-								>
+								<span class="block text-xs text-muted-foreground">{step.detail}</span>
 							{/if}
 						</span>
 						<CaretRightIcon class="size-4 text-muted-foreground group-hover:text-foreground" />
 					</a>
 				</li>
 			{/each}
-		</ol>
-	</section>
+		</Rows>
+	</Section>
 {/if}
 
-<section aria-labelledby="home-screen">
-	<div class="mb-4 flex items-baseline justify-between gap-4">
-		<h2 id="home-screen" class="text-[13px] font-medium text-muted-foreground">Home screen</h2>
-		<a
-			href={resolve('/admin/libraries')}
-			class="text-sm text-primary underline-offset-4 hover:underline">Arrange</a
-		>
-	</div>
+<Section id="home-screen" title="Home screen">
+	{#snippet actions()}
+		<Button href={resolve('/admin/libraries')} variant="ghost" size="sm">Arrange</Button>
+	{/snippet}
 
 	{#each data.shelves as shelf (shelf.id)}
-		<div class="mb-10">
-			<h3 class="mb-3 text-[15px] font-medium">
-				{shelf.name}
-				<span class="ml-1 text-xs font-normal text-muted-foreground">{typeLabel[shelf.type]}</span>
+		<div class="not-last:mb-10">
+			<h3 class="mb-3 flex items-baseline gap-2 text-base font-medium">
+				<a
+					href={resolve('/admin/libraries/[id]', { id: shelf.id })}
+					class="underline-offset-4 hover:underline">{shelf.name}</a
+				>
+				<span class="text-xs font-normal text-muted-foreground">{TYPE_LABEL[shelf.type]}</span>
 			</h3>
 			{#if shelf.items.length}
 				<ul
 					class="-mx-4 flex snap-x scroll-px-4 [scrollbar-width:none] gap-3 overflow-x-auto px-4 sm:mx-0 sm:scroll-px-0 sm:px-0"
 				>
 					{#each shelf.items as item (item.id)}
-						<li class="w-32 shrink-0 snap-start lg:w-44">
+						<li class="w-32 shrink-0 snap-start lg:w-40">
 							<Poster src={item.poster} title={item.name} />
 							<p class="mt-2 truncate text-xs text-muted-foreground" title={item.name}>
 								{item.name}
@@ -138,16 +137,18 @@
 				</ul>
 			{:else}
 				<p class="text-sm text-muted-foreground">
-					Empty. The catalog returned nothing or its addon is unreachable.
+					Empty. The source returned nothing or is unreachable.
 				</p>
 			{/if}
 		</div>
 	{:else}
-		<p class="border-y py-6 text-sm text-muted-foreground">
+		<EmptyState>
 			No libraries are shown.
-			<a href={resolve('/admin/libraries')} class="text-primary underline-offset-4 hover:underline"
-				>Choose libraries</a
-			>
-		</p>
+			{#snippet action()}
+				<Button href={resolve('/admin/libraries')} variant="outline" size="sm"
+					>Choose libraries</Button
+				>
+			{/snippet}
+		</EmptyState>
 	{/each}
-</section>
+</Section>

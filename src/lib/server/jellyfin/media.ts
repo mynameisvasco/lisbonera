@@ -15,9 +15,12 @@ import {
 	getAddon,
 	listAddons,
 	listCollectionItems,
+	type CollectionSource,
 	type Library
 } from '../store';
+import { fetchListPage, loadMdblistKey, MDBLIST_PAGE } from '../mdblist';
 import { fetchCatalog, fetchMeta, isSearchable } from '../stremio/client';
+import { fetchTraktListPage, traktClientId, TRAKT_PAGE } from '../trakt-lists';
 import type { Meta, MetaPreview, Video } from '../stremio/types';
 import type { JfContext } from './context';
 import {
@@ -209,10 +212,91 @@ export function sorter(sort: SortSpec): ((a: Listed, b: Listed) => number) | nul
 	};
 }
 
-async function libraryFetcher(
-	c: Scope,
-	library: Library
-): Promise<(skip: number) => Promise<Listed[]>> {
+type Fetcher = (skip: number) => Promise<Listed[]>;
+
+const nothing: Fetcher = async () => [];
+
+function listed(metas: MetaPreview[]): Listed[] {
+	return metas.flatMap((meta) => {
+		const type = asMediaType(meta.type);
+		return type ? [{ meta, type }] : [];
+	});
+}
+
+/**
+ * Lists page by raw entries while `paginate` counts the items it keeps (entries without a usable id are dropped),
+ * so this maps one onto the other. A page with fewer raw entries than `pageSize` ends the list.
+ */
+function rawPaged(
+	pageSize: number,
+	fetchRaw: (offset: number) => Promise<{ metas: MetaPreview[]; count: number }>
+): Fetcher {
+	const offsets = new Map<number, number>([[0, 0]]);
+	let ended = false;
+	return async (skip) => {
+		const offset = offsets.get(skip);
+		if (offset === undefined || ended) return [];
+		const page = await fetchRaw(offset);
+		if (page.count < pageSize) ended = true;
+		offsets.set(skip + page.metas.length, offset + page.count);
+		return listed(page.metas);
+	};
+}
+
+async function sourceFetcher(c: Scope, source: CollectionSource): Promise<Fetcher> {
+	switch (source.kind) {
+		case 'catalog': {
+			const addon = await getAddon(c.env.DB, source.addonId);
+			if (!addon?.enabled) return nothing;
+			const extra: Record<string, string | number> = source.genre ? { genre: source.genre } : {};
+			return async (skip) =>
+				(
+					await fetchCatalog(
+						c,
+						addon,
+						source.type,
+						source.catalogId,
+						skip > 0 ? { ...extra, skip } : extra
+					)
+				).map((meta) => ({ meta, type: source.type }));
+		}
+		case 'mdblist': {
+			const key = await loadMdblistKey(c.env);
+			if (!key) return nothing;
+			return rawPaged(MDBLIST_PAGE, (offset) => fetchListPage(c, key, source.list, offset));
+		}
+		case 'trakt': {
+			const clientId = await traktClientId(c.env);
+			if (!clientId) return nothing;
+			return rawPaged(TRAKT_PAGE, (offset) =>
+				fetchTraktListPage(c, clientId, source, offset / TRAKT_PAGE + 1)
+			);
+		}
+	}
+}
+
+/** Several sources are read in full and listed one after the other, without repeats. */
+async function sourcesFetcher(c: Scope, sources: CollectionSource[]): Promise<Fetcher> {
+	if (sources.length === 1) return sourceFetcher(c, sources[0]);
+	const fetchers = await Promise.all(sources.map((source) => sourceFetcher(c, source)));
+	const share = Math.ceil(CATALOG_LIMIT / sources.length);
+	const pages = await Promise.all(
+		fetchers.map((fetchPage) =>
+			paginate(fetchPage, 0, 0, { cap: share, key: (item) => item.meta.id, all: true }).catch(
+				() => ({ items: [] as Listed[] })
+			)
+		)
+	);
+	const seen = new Set<string>();
+	const all = pages
+		.flatMap((page) => page.items)
+		.filter((item) => !seen.has(item.meta.id) && Boolean(seen.add(item.meta.id)));
+	return async (skip) => (skip === 0 ? all : []);
+}
+
+async function libraryFetcher(c: Scope, library: Library): Promise<Fetcher> {
+	if (library.kind === 'collection' && library.sources.length > 0)
+		return sourcesFetcher(c, library.sources);
 	if (library.kind === 'collection') {
 		const items = await listCollectionItems(c.env.DB, library.id);
 		const listed: Listed[] = items.map((item) => ({
@@ -245,7 +329,10 @@ export async function libraryPage(
 	options: { sort?: SortSpec; types?: MediaType[]; all?: boolean; nameStartsWith?: string } = {}
 ): Promise<Page<Listed>> {
 	const fetchPage = await libraryFetcher(c, library);
-	const compare = options.sort && library.kind === 'catalog' ? sorter(options.sort) : null;
+	const compare =
+		options.sort && (library.kind === 'catalog' || library.sources.length > 0)
+			? sorter(options.sort)
+			: null;
 	const types = options.types ?? [];
 	const prefix = options.nameStartsWith?.toLowerCase();
 	const filtering = (library.catalogType === 'mixed' && types.length > 0) || Boolean(prefix);

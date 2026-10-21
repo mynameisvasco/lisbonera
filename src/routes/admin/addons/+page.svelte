@@ -4,11 +4,15 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { toast } from 'svelte-sonner';
+	import EmptyState from '#lib/components/empty-state.svelte';
+	import Notice from '#lib/components/notice.svelte';
 	import PageHeader from '#lib/components/page-header.svelte';
 	import ReorderForm from '#lib/components/reorder-form.svelte';
+	import Rows from '#lib/components/rows.svelte';
+	import Section from '#lib/components/section.svelte';
+	import SubmitButton from '#lib/components/submit-button.svelte';
 	import * as Form from '#lib/components/ui/form/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
-	import { Spinner } from '#lib/components/ui/spinner/index.js';
 	import { addonSchema } from '#lib/schemas.js';
 	import { shift } from '#lib/reorder.js';
 	import { reorderAfterDrag } from '#lib/sortable.js';
@@ -46,17 +50,17 @@
 
 <svelte:head><title>Addons · Lisbonera</title></svelte:head>
 
-<div class="mx-auto max-w-4xl">
-	<PageHeader
-		title="Addons"
-		meta="Higher addons answer metadata first and list their streams first."
-	/>
+<PageHeader
+	title="Addons"
+	meta="Higher addons answer metadata first and list their streams first."
+/>
 
-	<form method="POST" action="?/add" use:formEnhance class="mb-10">
+<Section id="install" title="Install">
+	<form method="POST" action="?/add" use:formEnhance class="max-w-2xl">
 		<Form.Field {form} name="url">
 			<Form.Control>
 				{#snippet children({ props })}
-					<Form.Label>Install from manifest URL</Form.Label>
+					<Form.Label class="sr-only">Manifest URL</Form.Label>
 					<div class="flex gap-2">
 						<Input
 							{...props}
@@ -65,15 +69,13 @@
 							autocomplete="off"
 							class="font-mono text-sm"
 						/>
-						<Form.Button disabled={$submitting}
-							>{#if $submitting}<Spinner />{/if} Install</Form.Button
-						>
+						<SubmitButton pending={$submitting}>Install</SubmitButton>
 					</div>
 				{/snippet}
 			</Form.Control>
 			<Form.Description class="text-xs">
 				Configure an addon on its own page first (for example with your debrid key) and paste the
-				URL it gives you. Addons are listed at
+				manifest URL it gives you. Browse addons at
 				<a
 					href="https://stremio-addons.net"
 					target="_blank"
@@ -84,11 +86,25 @@
 			<Form.FieldErrors />
 		</Form.Field>
 	</form>
-
-	{#if addons.length && !hasStreams}
-		<p class="mb-6 border-l-2 border-terracotta pl-3 text-sm">
-			No enabled addon provides streams. Apps can browse but have nothing to play.
+	<Notice class="mt-6">
+		<p>
+			For richer metadata, artwork and catalogs (TMDB, TVDB, MDBList, streaming services, genres),
+			configure
+			<a
+				href="https://github.com/cedya77/aiometadata"
+				target="_blank"
+				rel="external noreferrer"
+				class="text-primary underline-offset-4 hover:underline">AIOMetadata</a
+			>, install it and drag it above Cinemeta.
 		</p>
+	</Notice>
+</Section>
+
+<Section id="installed" title="Installed">
+	{#if addons.length && !hasStreams}
+		<Notice tone="warning" class="mb-4">
+			No enabled addon provides streams. Apps can browse but have nothing to play.
+		</Notice>
 	{/if}
 
 	{#if addons.length}
@@ -98,7 +114,7 @@
 				if (next) save(next);
 			}}
 		>
-			<ol class="divide-y border-y">
+			<Rows ordered>
 				{#each addons as addon, index (addon.id)}
 					<AddonRow
 						{addon}
@@ -107,10 +123,10 @@
 						onMove={(delta) => save(shift(addons, index, delta))}
 					/>
 				{/each}
-			</ol>
+			</Rows>
 		</DragDropProvider>
 		<ReorderForm bind:this={reorderForm} />
 	{:else}
-		<p class="border-y py-6 text-sm text-muted-foreground">No addons installed.</p>
+		<EmptyState>No addons installed.</EmptyState>
 	{/if}
-</div>
+</Section>

@@ -6,6 +6,21 @@ const CONFIG_TTL = 30 * 1000;
 
 export type LibraryType = 'movie' | 'series' | 'mixed';
 
+/**
+ * Where a collection's titles come from. A collection without sources is a hand-picked list; with several, their
+ * titles are listed one source after the other (a pack's movie list, then its show list).
+ */
+export type CollectionSource =
+	| {
+			kind: 'catalog';
+			addonId: string;
+			type: 'movie' | 'series';
+			catalogId: string;
+			genre?: string;
+	  }
+	| { kind: 'mdblist'; list: string }
+	| { kind: 'trakt'; user: string; slug: string; name?: string };
+
 export interface Library {
 	id: string;
 	kind: 'catalog' | 'collection';
@@ -15,6 +30,11 @@ export interface Library {
 	name: string;
 	enabled: boolean;
 	position: number;
+	sources: CollectionSource[];
+	/** An http(s) URL, or `upload:<id>` for artwork stored in the `images` table. */
+	image: string | null;
+	/** Width divided by height of `image`, when known. */
+	imageAspect: number | null;
 }
 
 export interface CollectionItem {
@@ -45,6 +65,9 @@ interface LibraryRow {
 	name: string;
 	enabled: number;
 	position: number;
+	sources: string | null;
+	image: string | null;
+	image_aspect: number | null;
 }
 
 interface CollectionItemRow {
@@ -77,6 +100,16 @@ function toAddon(row: AddonRow): Addon {
 	};
 }
 
+function parseSources(raw: string | null): CollectionSource[] {
+	if (!raw) return [];
+	try {
+		const parsed = JSON.parse(raw) as CollectionSource | CollectionSource[];
+		return Array.isArray(parsed) ? parsed : [parsed];
+	} catch {
+		return [];
+	}
+}
+
 function toLibrary(row: LibraryRow): Library {
 	return {
 		id: row.id,
@@ -86,7 +119,10 @@ function toLibrary(row: LibraryRow): Library {
 		catalogId: row.catalog_id,
 		name: row.name,
 		enabled: row.enabled === 1,
-		position: row.position
+		position: row.position,
+		sources: parseSources(row.sources),
+		image: row.image,
+		imageAspect: row.image_aspect
 	};
 }
 
@@ -216,43 +252,154 @@ export async function ensureCatalogLibraries(
 	invalidateConfig();
 }
 
+export interface NewCollection {
+	name: string;
+	type: LibraryType;
+	sources?: CollectionSource[];
+	image?: string | null;
+	imageAspect?: number | null;
+}
+
+function insertCollection(db: D1Database, id: string, collection: NewCollection) {
+	const sources = collection.sources ?? [];
+	// Catalog-backed collections reference their addon so removing the addon removes them too.
+	const catalog = sources.find((source) => source.kind === 'catalog');
+	return db
+		.prepare(
+			`INSERT INTO libraries (id, kind, addon_id, catalog_type, name, enabled, position, sources, image, image_aspect)
+			VALUES (?, 'collection', ?, ?, ?, 1, (SELECT coalesce(max(position), -1) + 1 FROM libraries), ?, ?, ?)`
+		)
+		.bind(
+			id,
+			catalog?.addonId ?? null,
+			collection.type,
+			collection.name,
+			sources.length ? JSON.stringify(sources) : null,
+			collection.image ?? null,
+			collection.imageAspect ?? null
+		);
+}
+
 export async function createCollection(
 	db: D1Database,
 	name: string,
-	type: LibraryType
+	type: LibraryType,
+	sources: CollectionSource[] = []
 ): Promise<string> {
-	const id = randomHex(16);
-	await db
-		.prepare(
-			`INSERT INTO libraries (id, kind, catalog_type, name, enabled, position)
-			VALUES (?, 'collection', ?, ?, 1, (SELECT coalesce(max(position), -1) + 1 FROM libraries))`
-		)
-		.bind(id, type, name)
-		.run();
-	invalidateConfig();
+	const [id] = await createCollections(db, [{ name, type, sources }]);
 	return id;
+}
+
+/** Creates several collections in one batch, appended in the given order. */
+export async function createCollections(
+	db: D1Database,
+	collections: NewCollection[]
+): Promise<string[]> {
+	if (collections.length === 0) return [];
+	const ids = collections.map(() => randomHex(16));
+	await db.batch(
+		collections.map((collection, index) => insertCollection(db, ids[index], collection))
+	);
+	invalidateConfig();
+	return ids;
+}
+
+export interface LibraryChanges {
+	name?: string;
+	enabled?: boolean;
+	image?: { url: string | null; aspect: number | null };
 }
 
 export async function updateLibrary(
 	db: D1Database,
 	id: string,
-	changes: { name?: string; enabled?: boolean }
+	changes: LibraryChanges
 ): Promise<void> {
+	const statements: D1PreparedStatement[] = [];
 	if (changes.name !== undefined) {
-		await db.prepare('UPDATE libraries SET name = ? WHERE id = ?').bind(changes.name, id).run();
+		statements.push(
+			db.prepare('UPDATE libraries SET name = ? WHERE id = ?').bind(changes.name, id)
+		);
 	}
 	if (changes.enabled !== undefined) {
-		await db
-			.prepare('UPDATE libraries SET enabled = ? WHERE id = ?')
-			.bind(changes.enabled ? 1 : 0, id)
-			.run();
+		statements.push(
+			db.prepare('UPDATE libraries SET enabled = ? WHERE id = ?').bind(changes.enabled ? 1 : 0, id)
+		);
 	}
+	if (changes.image !== undefined) {
+		statements.push(
+			db
+				.prepare('UPDATE libraries SET image = ?, image_aspect = ? WHERE id = ?')
+				.bind(changes.image.url, changes.image.aspect, id)
+		);
+	}
+	if (statements.length > 0) await db.batch(statements);
+	if (changes.image !== undefined) await deleteOrphanImages(db);
+	invalidateConfig();
+}
+
+/** Sets the artwork of several libraries at once (a pack applied to existing libraries). */
+export async function setLibraryImages(
+	db: D1Database,
+	images: { id: string; image: string; imageAspect: number }[]
+): Promise<void> {
+	if (images.length === 0) return;
+	await db.batch(
+		images.map((item) =>
+			db
+				.prepare('UPDATE libraries SET image = ?, image_aspect = ? WHERE id = ?')
+				.bind(item.image, item.imageAspect, item.id)
+		)
+	);
+	await deleteOrphanImages(db);
 	invalidateConfig();
 }
 
 export async function deleteLibrary(db: D1Database, id: string): Promise<void> {
 	await db.prepare('DELETE FROM libraries WHERE id = ?').bind(id).run();
+	await deleteOrphanImages(db);
 	invalidateConfig();
+}
+
+export const UPLOAD_PREFIX = 'upload:';
+/** D1 rows are limited to 2 MB; the dashboard resizes artwork well below this. */
+export const MAX_IMAGE_BYTES = 1024 * 1024;
+
+export async function saveImage(
+	db: D1Database,
+	contentType: string,
+	data: ArrayBuffer
+): Promise<string> {
+	const id = randomHex(16);
+	await db
+		.prepare('INSERT INTO images (id, content_type, data, created_at) VALUES (?, ?, ?, ?)')
+		.bind(id, contentType, data, Date.now())
+		.run();
+	return `${UPLOAD_PREFIX}${id}`;
+}
+
+export async function loadImage(
+	db: D1Database,
+	ref: string
+): Promise<{ contentType: string; data: ArrayBuffer } | null> {
+	if (!ref.startsWith(UPLOAD_PREFIX)) return null;
+	const row = await db
+		.prepare('SELECT content_type, data FROM images WHERE id = ?')
+		.bind(ref.slice(UPLOAD_PREFIX.length))
+		.first<{ content_type: string; data: ArrayBuffer | number[] }>();
+	if (!row) return null;
+	const data = row.data instanceof ArrayBuffer ? row.data : new Uint8Array(row.data).buffer;
+	return { contentType: row.content_type, data };
+}
+
+/** Uploads are only reachable through a library, so replaced or deleted artwork is dropped. */
+async function deleteOrphanImages(db: D1Database): Promise<void> {
+	await db
+		.prepare(
+			`DELETE FROM images WHERE ('${UPLOAD_PREFIX}' || id) NOT IN
+			(SELECT image FROM libraries WHERE image IS NOT NULL)`
+		)
+		.run();
 }
 
 export async function listCollectionItems(

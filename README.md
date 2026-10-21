@@ -18,7 +18,11 @@ Jellyfin client ──► Worker (SvelteKit, src/hooks.server.ts)
                      └─ /admin ────────► SvelteKit dashboard (Cloudflare Access)
 ```
 
-- Each enabled addon catalog becomes a Jellyfin library. You can also build manual collections.
+- Each enabled addon catalog becomes a Jellyfin library. Collections add more: hand-picked titles, one per genre
+  of an addon catalog (Cinemeta, AIOMetadata…), or an MDBList or Trakt list that they follow as it changes.
+- Any library can have its own artwork: an upload, an image URL, or a
+  [Fusion Starter Kit](https://kit.betterer.cc/) pack. A pack creates a set of collections (genres, streaming
+  services, decades, awards, directors) with their artwork and Trakt lists, or restyles libraries with the same name.
 - Video never passes through the Worker. Clients are redirected to the addon's URL and play it directly, so only
   sources that are plain `http(s)` links work. Use addons configured with your debrid service, or addons that
   return direct links.
@@ -91,6 +95,15 @@ The Worker verifies the Access token itself as well, so requests that bypass Acc
 3. **Devices**: create an app password for each device. It is shown once; dashes and case are ignored.
 4. In your Jellyfin client, add a server with your domain, the username (`admin` unless changed) and the app
    password.
+
+## Lists and artwork
+
+- **Trakt lists** (and the Trakt-sourced packs) are read with the Trakt API app you set up for scrobbling.
+- **MDBList lists** need a free API key from [mdblist.com/preferences](https://mdblist.com/preferences/), saved in
+  the New collection dialog. It is stored encrypted, like the Trakt tokens.
+- Title artwork comes from the addons (Cinemeta serves `images.metahub.space`); list items use the same service by
+  IMDb id. For TMDB/TVDB/Fanart artwork and richer catalogs, install
+  [AIOMetadata](https://github.com/cedya77/aiometadata) above Cinemeta.
 
 ## Scrobbling
 
