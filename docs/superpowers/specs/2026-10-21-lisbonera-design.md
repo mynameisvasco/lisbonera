@@ -46,18 +46,18 @@ case-insensitively (Infuse sends camelCase).
 
 ### Modules (`src/lib/server/`)
 
-| Module | Responsibility |
-|---|---|
-| `env.ts` | Typed bindings/secrets |
-| `db.ts` | Typed D1 queries |
-| `crypto.ts` | PBKDF2 hashing, random tokens, AES-GCM encryption, SHA-based GUIDs |
+| Module           | Responsibility                                                                      |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| `env.ts`         | Typed bindings/secrets                                                              |
+| `db.ts`          | Typed D1 queries                                                                    |
+| `crypto.ts`      | PBKDF2 hashing, random tokens, AES-GCM encryption, SHA-based GUIDs                  |
 | `auth/access.ts` | Validate `Cf-Access-Jwt-Assertion` (JWKS, `aud`, `iss`, allowed email) for `/admin` |
-| `auth/client.ts` | App passwords, Jellyfin session tokens, token extraction from request |
-| `stremio/` | Addon client (manifest/catalog/meta/stream), timeouts, cache, subrequest budget |
-| `ids.ts` | Stremio id ⇄ GUID, synthetic season/episode ids, batched `id_map` writes |
-| `jellyfin/` | Router, handlers, DTO mapping |
-| `images.ts` | Image proxy with edge cache |
-| `scrobble/` | Generic `ScrobbleProvider` interface, registry, Trakt implementation |
+| `auth/client.ts` | App passwords, Jellyfin session tokens, token extraction from request               |
+| `stremio/`       | Addon client (manifest/catalog/meta/stream), timeouts, cache, subrequest budget     |
+| `ids.ts`         | Stremio id ⇄ GUID, synthetic season/episode ids, batched `id_map` writes            |
+| `jellyfin/`      | Router, handlers, DTO mapping                                                       |
+| `images.ts`      | Image proxy with edge cache                                                         |
+| `scrobble/`      | Generic `ScrobbleProvider` interface, registry, Trakt implementation                |
 
 ## Authentication
 
@@ -73,15 +73,15 @@ case-insensitively (Infuse sends camelCase).
 
 ## Jellyfin API (v1)
 
-| Group | Endpoints |
-|---|---|
-| System | `GET /System/Info/Public`, `GET /System/Info`, `GET/POST /System/Ping`, `GET /Branding/Configuration`, `GET /Branding/Css`, `GET /QuickConnect/Enabled`, `GET /Users/Public`, `GET /System/Endpoint` |
-| User | `GET /Users/Me`, `GET /Users/{id}`, `GET /Users`, `GET/POST /DisplayPreferences/{id}` |
-| Libraries | `GET /UserViews`, `GET /Users/{id}/Views`, `GET /Library/MediaFolders`, `GET /Library/VirtualFolders`, `GET /Users/{id}/GroupingOptions` |
-| Items | `GET /Items`, `GET /Users/{id}/Items`, `GET /Items/{id}`, `GET /Users/{id}/Items/{id}`, `GET /Items/Latest`, `GET /Users/{id}/Items/Latest`, `GET /Items/Resume`, `GET /Users/{id}/Items/Resume`, `GET /Shows/NextUp`, `GET /Shows/{id}/Seasons`, `GET /Shows/{id}/Episodes`, `GET /Search/Hints`, `GET /Items/Counts`; empty but valid: `/Items/{id}/Similar`, `/Items/Filters`, `/Items/Filters2`, `/Genres`, `/Items/{id}/LocalTrailers`, `/Items/{id}/SpecialFeatures`, `/Items/{id}/ThemeMedia`, `/Items/{id}/Intros`, `/MediaSegments/{id}` |
-| Images | `GET/HEAD /Items/{id}/Images/{type}[/{index}]` |
-| Playback | `GET/POST /Items/{id}/PlaybackInfo`, `GET/HEAD /Videos/{id}/stream[.{ext}]`, `GET /Items/{id}/Download` → 302 |
-| Sessions | `POST /Sessions/Capabilities[/Full]`, `POST /Sessions/Playing`, `/Playing/Progress`, `/Playing/Stopped`, `/Playing/Ping`, `POST/DELETE /Users/{id}/PlayedItems/{id}`, `POST/DELETE /UserPlayedItems/{id}`, `POST /Sessions/Logout` |
+| Group     | Endpoints                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| System    | `GET /System/Info/Public`, `GET /System/Info`, `GET/POST /System/Ping`, `GET /Branding/Configuration`, `GET /Branding/Css`, `GET /QuickConnect/Enabled`, `GET /Users/Public`, `GET /System/Endpoint`                                                                                                                                                                                                                                                                                                                                              |
+| User      | `GET /Users/Me`, `GET /Users/{id}`, `GET /Users`, `GET/POST /DisplayPreferences/{id}`                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Libraries | `GET /UserViews`, `GET /Users/{id}/Views`, `GET /Library/MediaFolders`, `GET /Library/VirtualFolders`, `GET /Users/{id}/GroupingOptions`                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Items     | `GET /Items`, `GET /Users/{id}/Items`, `GET /Items/{id}`, `GET /Users/{id}/Items/{id}`, `GET /Items/Latest`, `GET /Users/{id}/Items/Latest`, `GET /Items/Resume`, `GET /Users/{id}/Items/Resume`, `GET /Shows/NextUp`, `GET /Shows/{id}/Seasons`, `GET /Shows/{id}/Episodes`, `GET /Search/Hints`, `GET /Items/Counts`; empty but valid: `/Items/{id}/Similar`, `/Items/Filters`, `/Items/Filters2`, `/Genres`, `/Items/{id}/LocalTrailers`, `/Items/{id}/SpecialFeatures`, `/Items/{id}/ThemeMedia`, `/Items/{id}/Intros`, `/MediaSegments/{id}` |
+| Images    | `GET/HEAD /Items/{id}/Images/{type}[/{index}]`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Playback  | `GET/POST /Items/{id}/PlaybackInfo`, `GET/HEAD /Videos/{id}/stream[.{ext}]`, `GET /Items/{id}/Download` → 302                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Sessions  | `POST /Sessions/Capabilities[/Full]`, `POST /Sessions/Playing`, `/Playing/Progress`, `/Playing/Stopped`, `/Playing/Ping`, `POST/DELETE /Users/{id}/PlayedItems/{id}`, `POST/DELETE /UserPlayedItems/{id}`, `POST /Sessions/Logout`                                                                                                                                                                                                                                                                                                                |
 
 Unknown paths return 404 and are logged.
 
@@ -136,15 +136,15 @@ of the source URL so clients cache correctly.
 
 ```ts
 interface ScrobbleProvider {
-  readonly id: string;
-  readonly name: string;
-  startDeviceAuth(): Promise<DeviceCode>;
-  pollDeviceAuth(deviceCode: string): Promise<ProviderTokens | 'pending'>;
-  scrobble(event: 'start' | 'pause' | 'stop', item: MediaRef, progress: number): Promise<void>;
-  setWatched(item: MediaRef, watched: boolean): Promise<void>;
-  resume(): Promise<ResumeEntry[]>;
-  nextUp(): Promise<MediaRef[]>;
-  watchSnapshot(): Promise<WatchSnapshot>;
+	readonly id: string;
+	readonly name: string;
+	startDeviceAuth(): Promise<DeviceCode>;
+	pollDeviceAuth(deviceCode: string): Promise<ProviderTokens | 'pending'>;
+	scrobble(event: 'start' | 'pause' | 'stop', item: MediaRef, progress: number): Promise<void>;
+	setWatched(item: MediaRef, watched: boolean): Promise<void>;
+	resume(): Promise<ResumeEntry[]>;
+	nextUp(): Promise<MediaRef[]>;
+	watchSnapshot(): Promise<WatchSnapshot>;
 }
 ```
 
