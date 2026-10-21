@@ -13,7 +13,13 @@ async function authenticateByName(c: JfContext): Promise<Response> {
 
 	const body = await readJson<{ Username: string; Pw: string; Password: string }>(c.request);
 	const info = clientInfo(c.request);
-	const token = await login(c.env.DB, c.username, body.Username ?? '', body.Pw ?? body.Password ?? '', info);
+	const token = await login(
+		c.env.DB,
+		c.username,
+		body.Username ?? '',
+		body.Pw ?? body.Password ?? '',
+		info
+	);
 	if (!token) return unauthorized();
 
 	const now = new Date().toISOString();
@@ -22,9 +28,20 @@ async function authenticateByName(c: JfContext): Promise<Response> {
 		AccessToken: token,
 		ServerId: c.dto.serverId,
 		SessionInfo: {
-			PlayState: { CanSeek: false, IsPaused: false, IsMuted: false, RepeatMode: 'RepeatNone', PlaybackOrder: 'Default' },
+			PlayState: {
+				CanSeek: false,
+				IsPaused: false,
+				IsMuted: false,
+				RepeatMode: 'RepeatNone',
+				PlaybackOrder: 'Default'
+			},
 			AdditionalUsers: [],
-			Capabilities: { PlayableMediaTypes: [], SupportedCommands: [], SupportsMediaControl: false, SupportsPersistentIdentifier: true },
+			Capabilities: {
+				PlayableMediaTypes: [],
+				SupportedCommands: [],
+				SupportsMediaControl: false,
+				SupportsPersistentIdentifier: true
+			},
 			RemoteEndPoint: ip,
 			PlayableMediaTypes: [],
 			Id: token.slice(0, 32),
@@ -76,11 +93,16 @@ export function userRoutes(router: Router): void {
 
 	router.on('GET', '/displaypreferences/:id', async (c) => {
 		const client = c.query.get('client') ?? 'emby';
-		return json((await getDisplayPrefs(c.env.DB, c.params.id, client)) ?? defaultPrefs(c.params.id, client));
+		return json(
+			(await getDisplayPrefs(c.env.DB, c.params.id, client)) ?? defaultPrefs(c.params.id, client)
+		);
 	});
 	router.on('POST', '/displaypreferences/:id', async (c) => {
 		const client = c.query.get('client') ?? 'emby';
-		await setDisplayPrefs(c.env.DB, c.params.id, client, { ...defaultPrefs(c.params.id, client), ...(await readJson(c.request)) });
+		await setDisplayPrefs(c.env.DB, c.params.id, client, {
+			...defaultPrefs(c.params.id, client),
+			...(await readJson(c.request))
+		});
 		return noContent();
 	});
 }

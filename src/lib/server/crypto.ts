@@ -29,12 +29,13 @@ export function generateAppPassword(): string {
 	const chars: string[] = [];
 	while (chars.length < 24) {
 		for (const byte of crypto.getRandomValues(new Uint8Array(32))) {
-			if (byte < limit && chars.length < 24) chars.push(PASSWORD_ALPHABET[byte % PASSWORD_ALPHABET.length]);
+			if (byte < limit && chars.length < 24)
+				chars.push(PASSWORD_ALPHABET[byte % PASSWORD_ALPHABET.length]);
 		}
 	}
-	return Array.from({ length: 6 }, (_, group) => chars.slice(group * 4, group * 4 + 4).join('')).join(
-		'-'
-	);
+	return Array.from({ length: 6 }, (_, group) =>
+		chars.slice(group * 4, group * 4 + 4).join('')
+	).join('-');
 }
 
 export async function sha256Hex(value: string): Promise<string> {

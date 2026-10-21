@@ -69,7 +69,9 @@ export function traktBody(ref: MediaRef): Record<string, unknown> {
 function historyBody(ref: MediaRef): Record<string, unknown> {
 	if (ref.type === 'movie') return { movies: [{ ids: ids(ref) }] };
 	return {
-		shows: [{ ids: ids(ref), seasons: [{ number: ref.season, episodes: [{ number: ref.episode }] }] }]
+		shows: [
+			{ ids: ids(ref), seasons: [{ number: ref.season, episodes: [{ number: ref.episode }] }] }
+		]
 	};
 }
 
@@ -125,7 +127,11 @@ class TraktProvider implements ScrobbleProvider {
 	}
 
 	async setWatched(ref: MediaRef, watched: boolean): Promise<void> {
-		await this.request('POST', watched ? '/sync/history' : '/sync/history/remove', historyBody(ref));
+		await this.request(
+			'POST',
+			watched ? '/sync/history' : '/sync/history/remove',
+			historyBody(ref)
+		);
 	}
 
 	async playback(): Promise<PlaybackEntry[]> {
@@ -142,11 +148,20 @@ class TraktProvider implements ScrobbleProvider {
 		return items
 			.map((item): PlaybackEntry | null => {
 				if (item.type === 'movie' && item.movie) {
-					return { ref: { type: 'movie', ...fromIds(item.movie.ids) }, progress: item.progress, pausedAt: item.paused_at };
+					return {
+						ref: { type: 'movie', ...fromIds(item.movie.ids) },
+						progress: item.progress,
+						pausedAt: item.paused_at
+					};
 				}
 				if (item.type === 'episode' && item.show && item.episode) {
 					return {
-						ref: { type: 'episode', ...fromIds(item.show.ids), season: item.episode.season, episode: item.episode.number },
+						ref: {
+							type: 'episode',
+							...fromIds(item.show.ids),
+							season: item.episode.season,
+							episode: item.episode.number
+						},
 						progress: item.progress,
 						pausedAt: item.paused_at
 					};
@@ -190,7 +205,9 @@ class TraktProvider implements ScrobbleProvider {
 				if (episode.completed) watched.add(`${season.number}:${episode.number}`);
 			}
 		}
-		const next = body.next_episode ? { season: body.next_episode.season, episode: body.next_episode.number } : null;
+		const next = body.next_episode
+			? { season: body.next_episode.season, episode: body.next_episode.number }
+			: null;
 		return { watched, next };
 	}
 

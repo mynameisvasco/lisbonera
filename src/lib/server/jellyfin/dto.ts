@@ -74,12 +74,18 @@ function virtualPath(name: string, year?: number): string {
 	return year ? `${clean} (${year})` : clean;
 }
 
-function userData(key: string, itemId: string, state: UserState | undefined, runtime: number | null): UserItemDataDto {
+function userData(
+	key: string,
+	itemId: string,
+	state: UserState | undefined,
+	runtime: number | null
+): UserItemDataDto {
 	const progress = state?.progress ?? 0;
 	return {
 		Key: key,
 		ItemId: itemId,
-		PlaybackPositionTicks: runtime && progress > 0 && !state?.played ? Math.round((runtime * progress) / 100) : 0,
+		PlaybackPositionTicks:
+			runtime && progress > 0 && !state?.played ? Math.round((runtime * progress) / 100) : 0,
 		PlayedPercentage: progress > 0 && !state?.played ? progress : null,
 		PlayCount: state?.played ? 1 : 0,
 		IsFavorite: false,
@@ -133,18 +139,28 @@ function describe(item: BaseItemDto, meta: Meta | MetaPreview, stremioId: string
 	const genres = meta.genres ?? meta.genre ?? [];
 	item.Overview = meta.description;
 	item.Genres = genres;
-	item.GenreItems = genres.map((name) => ({ Name: name, Id: tag(`genre|${name}`).padEnd(32, '0') }));
+	item.GenreItems = genres.map((name) => ({
+		Name: name,
+		Id: tag(`genre|${name}`).padEnd(32, '0')
+	}));
 	item.ProductionYear = productionYear(meta);
 	item.PremiereDate = isoDate('released' in meta ? meta.released : undefined);
 	const rating = Number.parseFloat(String(meta.imdbRating ?? ''));
 	if (Number.isFinite(rating)) item.CommunityRating = rating;
 	item.ProviderIds = providerIds(stremioId, meta);
 	if ('cast' in meta && meta.cast) {
-		item.People = meta.cast.slice(0, 15).map((name) => ({ Name: name, Id: tag(`person|${name}`).padEnd(32, '0'), Type: 'Actor' }));
+		item.People = meta.cast
+			.slice(0, 15)
+			.map((name) => ({ Name: name, Id: tag(`person|${name}`).padEnd(32, '0'), Type: 'Actor' }));
 	}
 }
 
-export function movieItem(ctx: DtoContext, entry: IdEntry, meta: Meta | MetaPreview, state?: UserState): BaseItemDto {
+export function movieItem(
+	ctx: DtoContext,
+	entry: IdEntry,
+	meta: Meta | MetaPreview,
+	state?: UserState
+): BaseItemDto {
 	const item = base(ctx, entry.guid, meta.name);
 	describe(item, meta, entry.stremioId);
 	images(item, entry);
@@ -201,7 +217,11 @@ export function seasonItem(
 ): BaseItemDto {
 	const season = entry.season ?? 0;
 	const item = base(ctx, entry.guid, seasonName(season));
-	images(item, { poster: entry.poster ?? series.poster, background: series.background, logo: null });
+	images(item, {
+		poster: entry.poster ?? series.poster,
+		background: series.background,
+		logo: null
+	});
 	return {
 		...item,
 		Type: 'Season',
@@ -243,10 +263,14 @@ export function episodeItem(
 		IsFolder: false,
 		MediaType: 'Video',
 		VideoType: 'VideoFile',
-		Path: virtualPath(`${seriesName} S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`),
+		Path: virtualPath(
+			`${seriesName} S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`
+		),
 		Overview: video.overview ?? video.description,
 		PremiereDate: isoDate(video.released ?? video.firstAired),
-		ProductionYear: isoDate(video.released) ? new Date(video.released!).getUTCFullYear() : undefined,
+		ProductionYear: isoDate(video.released)
+			? new Date(video.released!).getUTCFullYear()
+			: undefined,
 		IndexNumber: episode,
 		ParentIndexNumber: season,
 		SortName: `${String(season).padStart(4, '0')}-${String(episode).padStart(4, '0')}`,
@@ -401,7 +425,8 @@ export function userDto(ctx: DtoContext, username: string): UserDto {
 			BlockedMediaFolders: [],
 			BlockedChannels: [],
 			RemoteClientBitrateLimit: 0,
-			AuthenticationProviderId: 'Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider',
+			AuthenticationProviderId:
+				'Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider',
 			PasswordResetProviderId: 'Jellyfin.Server.Implementations.Users.DefaultPasswordResetProvider',
 			SyncPlayAccess: 'None'
 		}

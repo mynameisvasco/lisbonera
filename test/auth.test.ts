@@ -1,7 +1,12 @@
 import { env } from 'cloudflare:workers';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { verifyAccess } from '../src/lib/server/auth/access';
-import { createAppPassword, extractToken, parseAuthorization, revokeAppPassword } from '../src/lib/server/auth/client';
+import {
+	createAppPassword,
+	extractToken,
+	parseAuthorization,
+	revokeAppPassword
+} from '../src/lib/server/auth/client';
 import { Query } from '../src/lib/server/http';
 import { authed, call, seed } from './helpers';
 
@@ -29,7 +34,9 @@ describe('extractToken variants', () => {
 	});
 
 	it('decodes percent-encoded values', () => {
-		expect(parseAuthorization('MediaBrowser Device="Apple%20TV", Token="t"').device).toBe('Apple TV');
+		expect(parseAuthorization('MediaBrowser Device="Apple%20TV", Token="t"').device).toBe(
+			'Apple TV'
+		);
 	});
 });
 
@@ -46,7 +53,9 @@ describe('login', () => {
 		const { password } = await createAppPassword(env.DB, 'TV');
 		expect(password).toMatch(/^([a-z2-9]{4}-){5}[a-z2-9]{4}$/);
 		expect((await authenticate(password)).status).toBe(200);
-		expect((await authenticate(password.replace(/-/g, '').toUpperCase(), 'ADMIN')).status).toBe(200);
+		expect((await authenticate(password.replace(/-/g, '').toUpperCase(), 'ADMIN')).status).toBe(
+			200
+		);
 	});
 
 	it('rejects a wrong password or user', async () => {
@@ -57,7 +66,10 @@ describe('login', () => {
 
 	it('revoking an app password ends its sessions', async () => {
 		const { id, password } = await createAppPassword(env.DB, 'TV');
-		const body = (await (await authenticate(password)).json()) as { AccessToken: string; User: { Id: string } };
+		const body = (await (await authenticate(password)).json()) as {
+			AccessToken: string;
+			User: { Id: string };
+		};
 		expect(body.User.Id).toMatch(/^[0-9a-f]{32}$/);
 		expect((await call('/Users/Me', authed(body.AccessToken))).status).toBe(200);
 		await revokeAppPassword(env.DB, id);
@@ -68,7 +80,9 @@ describe('login', () => {
 describe('Cloudflare Access', () => {
 	it('rejects requests without a valid assertion', async () => {
 		expect(await verifyAccess(new Request('https://media.test/admin'), env)).toBeNull();
-		const forged = new Request('https://media.test/admin', { headers: { 'cf-access-jwt-assertion': 'a.b.c' } });
+		const forged = new Request('https://media.test/admin', {
+			headers: { 'cf-access-jwt-assertion': 'a.b.c' }
+		});
 		expect(await verifyAccess(forged, env)).toBeNull();
 	});
 });

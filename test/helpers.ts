@@ -26,8 +26,21 @@ export const manifest: Manifest = {
 };
 
 export const movies: MetaPreview[] = [
-	{ id: 'tt0000001', type: 'movie', name: 'Alpha', poster: 'https://img.test/1.jpg', releaseInfo: '2001', runtime: '100 min' },
-	{ id: 'tt0000002', type: 'movie', name: 'Bravo', poster: 'https://img.test/2.jpg', releaseInfo: '2002' },
+	{
+		id: 'tt0000001',
+		type: 'movie',
+		name: 'Alpha',
+		poster: 'https://img.test/1.jpg',
+		releaseInfo: '2001',
+		runtime: '100 min'
+	},
+	{
+		id: 'tt0000002',
+		type: 'movie',
+		name: 'Bravo',
+		poster: 'https://img.test/2.jpg',
+		releaseInfo: '2002'
+	},
 	{ id: 'tt0000003', type: 'movie', name: 'Charlie', releaseInfo: '2003' }
 ];
 
@@ -47,9 +60,17 @@ export const show: Meta = {
 };
 
 export const movieStreams: Stream[] = [
-	{ url: 'https://cdn.test/alpha-1080.mkv', name: 'Test', title: '1080p\n2 GB', behaviorHints: { filename: 'alpha.mkv' } },
+	{
+		url: 'https://cdn.test/alpha-1080.mkv',
+		name: 'Test',
+		title: '1080p\n2 GB',
+		behaviorHints: { filename: 'alpha.mkv' }
+	},
 	{ infoHash: 'abcdef' },
-	{ url: 'https://cdn.test/proxied.mkv', behaviorHints: { proxyHeaders: { request: { referer: 'x' } } } },
+	{
+		url: 'https://cdn.test/proxied.mkv',
+		behaviorHints: { proxyHeaders: { request: { referer: 'x' } } }
+	},
 	{ url: 'https://cdn.test/alpha-720.mp4', name: 'Test', title: '720p' }
 ];
 
@@ -57,7 +78,9 @@ export const movieStreams: Stream[] = [
 export function mockAddon(streams: Record<string, Stream[]> = { tt0000001: movieStreams }): void {
 	network.use(
 		http.get(`${ADDON_URL}/manifest.json`, () => HttpResponse.json(manifest)),
-		http.get(`${ADDON_URL}/catalog/movie/top.json`, () => HttpResponse.json({ metas: movies.slice(0, 2) })),
+		http.get(`${ADDON_URL}/catalog/movie/top.json`, () =>
+			HttpResponse.json({ metas: movies.slice(0, 2) })
+		),
 		http.get(`${ADDON_URL}/catalog/movie/top/:extra`, ({ params }) => {
 			const extra = decodeURIComponent(String(params.extra).replace(/\.json$/, ''));
 			if (extra.startsWith('skip=')) {
@@ -65,7 +88,9 @@ export function mockAddon(streams: Record<string, Stream[]> = { tt0000001: movie
 				return HttpResponse.json({ metas: movies.slice(skip, skip + 2) });
 			}
 			const term = extra.replace('search=', '').toLowerCase();
-			return HttpResponse.json({ metas: movies.filter((movie) => movie.name.toLowerCase().includes(term)) });
+			return HttpResponse.json({
+				metas: movies.filter((movie) => movie.name.toLowerCase().includes(term))
+			});
 		}),
 		http.get(`${ADDON_URL}/catalog/series/shows.json`, () => HttpResponse.json({ metas: [show] })),
 		http.get(`${ADDON_URL}/catalog/series/shows/:extra`, () => HttpResponse.json({ metas: [] })),
@@ -105,7 +130,11 @@ export async function seed(): Promise<void> {
 
 export async function call(path: string, init: RequestInit = {}): Promise<Response> {
 	const ctx = createExecutionContext();
-	const response = await worker.fetch!(new Request(`${ORIGIN}${path}`, init) as Request<unknown, IncomingRequestCfProperties>, env, ctx);
+	const response = await worker.fetch!(
+		new Request(`${ORIGIN}${path}`, init) as Request<unknown, IncomingRequestCfProperties>,
+		env,
+		ctx
+	);
 	await waitOnExecutionContext(ctx);
 	return response;
 }

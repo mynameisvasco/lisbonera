@@ -44,7 +44,10 @@ function typeFilter(c: JfContext): TypeFilter {
 }
 
 function sortSpec(c: JfContext): SortSpec {
-	return { by: c.query.list('SortBy'), descending: c.query.get('SortOrder')?.toLowerCase() === 'descending' };
+	return {
+		by: c.query.list('SortBy'),
+		descending: c.query.get('SortOrder')?.toLowerCase() === 'descending'
+	};
 }
 
 async function views(c: JfContext): Promise<BaseItemDto[]> {
@@ -58,22 +61,39 @@ async function childrenOf(c: JfContext, parentId: string, types: TypeFilter): Pr
 	const library = await getLibrary(c.env.DB, parentId);
 	if (library) {
 		if (types.unsupported) return emptyResult();
-		const page = await libraryPage(c, library, start, limit, { sort: sortSpec(c), types: types.media });
+		const page = await libraryPage(c, library, start, limit, {
+			sort: sortSpec(c),
+			types: types.media
+		});
 		return result(await listItems(c, page.items), page.total, start);
 	}
 
 	const entry = await c.ids.resolve(parentId);
 	if (!entry || entry.kind === 'movie' || entry.kind === 'episode') return emptyResult();
-	const series = entry.kind === 'series' ? entry : await c.ids.register({ kind: 'series', stremioId: entry.stremioId });
+	const series =
+		entry.kind === 'series'
+			? entry
+			: await c.ids.register({ kind: 'series', stremioId: entry.stremioId });
 	const view = await loadSeries(c, series);
 	if (!view) return emptyResult();
 
-	const wantsEpisodes = c.query.list('IncludeItemTypes').some((type) => type.toLowerCase() === 'episode');
+	const wantsEpisodes = c.query
+		.list('IncludeItemTypes')
+		.some((type) => type.toLowerCase() === 'episode');
 	const items =
 		entry.kind === 'season' || wantsEpisodes
-			? await episodeDtos(c, view, entry.kind === 'season' ? entry.season : null, await episodeProgress(c, series))
+			? await episodeDtos(
+					c,
+					view,
+					entry.kind === 'season' ? entry.season : null,
+					await episodeProgress(c, series)
+				)
 			: seasonDtos(c, view);
-	return result(limit > 0 ? items.slice(start, start + limit) : items.slice(start), items.length, start);
+	return result(
+		limit > 0 ? items.slice(start, start + limit) : items.slice(start),
+		items.length,
+		start
+	);
 }
 
 async function queryItems(c: JfContext): Promise<Response> {
@@ -127,7 +147,9 @@ async function itemDetail(c: JfContext): Promise<Response> {
 		const entry = await c.ids.resolve(id);
 		if (entry) {
 			const sources = await resolveSources(c, entry);
-			item.MediaSources = sources.map((source) => mediaSource(source, item.Path ?? item.Name ?? '', item.RunTimeTicks ?? null));
+			item.MediaSources = sources.map((source) =>
+				mediaSource(source, item.Path ?? item.Name ?? '', item.RunTimeTicks ?? null)
+			);
 		}
 	}
 	return json(item);
@@ -167,8 +189,17 @@ async function episodes(c: JfContext): Promise<Response> {
 	const start = c.query.int('StartIndex', 0);
 	const limit = c.query.int('Limit', 0);
 	const startItemId = c.query.get('StartItemId')?.toLowerCase().replace(/-/g, '');
-	const from = startItemId ? Math.max(0, items.findIndex((item) => item.Id === startItemId)) : start;
-	return result(limit > 0 ? items.slice(from, from + limit) : items.slice(from), items.length, from);
+	const from = startItemId
+		? Math.max(
+				0,
+				items.findIndex((item) => item.Id === startItemId)
+			)
+		: start;
+	return result(
+		limit > 0 ? items.slice(from, from + limit) : items.slice(from),
+		items.length,
+		from
+	);
 }
 
 async function nextUp(c: JfContext): Promise<Response> {
@@ -183,7 +214,10 @@ async function searchHints(c: JfContext): Promise<Response> {
 	const term = c.query.get('SearchTerm');
 	const types = typeFilter(c);
 	if (!term || types.unsupported) return json({ SearchHints: [], TotalRecordCount: 0 });
-	const items = await listItems(c, await search(c, term, types.media, c.query.int('Limit', 20) || 20));
+	const items = await listItems(
+		c,
+		await search(c, term, types.media, c.query.int('Limit', 20) || 20)
+	);
 	const hints: SearchHint[] = items.map((item) => ({
 		ItemId: item.Id,
 		Id: item.Id,
@@ -218,7 +252,9 @@ async function counts(c: JfContext): Promise<Response> {
 }
 
 export function itemRoutes(router: Router): void {
-	router.on('GET', ['/userviews', '/users/:userId/views', '/library/mediafolders'], async (c) => result(await views(c)));
+	router.on('GET', ['/userviews', '/users/:userId/views', '/library/mediafolders'], async (c) =>
+		result(await views(c))
+	);
 	router.on('GET', '/library/virtualfolders', async (c) =>
 		json(
 			(await views(c)).map((view) => ({
@@ -230,11 +266,15 @@ export function itemRoutes(router: Router): void {
 			}))
 		)
 	);
-	router.on('GET', ['/users/:userId/groupingoptions', '/userviews/groupingoptions'], () => json([]));
+	router.on('GET', ['/users/:userId/groupingoptions', '/userviews/groupingoptions'], () =>
+		json([])
+	);
 
 	router.on('GET', ['/items/latest', '/users/:userId/items/latest'], latest);
-	router.on('GET', ['/items/resume', '/users/:userId/items/resume', '/useritems/resume'], async (c) =>
-		result(await resumeItems(c, c.query.int('Limit', 12) || 12, typeFilter(c).media))
+	router.on(
+		'GET',
+		['/items/resume', '/users/:userId/items/resume', '/useritems/resume'],
+		async (c) => result(await resumeItems(c, c.query.int('Limit', 12) || 12, typeFilter(c).media))
 	);
 	router.on('GET', '/items/counts', counts);
 	router.on('GET', ['/items/filters', '/items/filters2'], () =>
@@ -277,6 +317,10 @@ export function itemRoutes(router: Router): void {
 	);
 	router.on('GET', '/items/:itemId/thememedia', (c) => {
 		const empty = { Items: [], TotalRecordCount: 0, StartIndex: 0, OwnerId: c.params.itemId };
-		return json({ ThemeVideosResult: empty, ThemeSongsResult: empty, SoundtrackSongsResult: empty });
+		return json({
+			ThemeVideosResult: empty,
+			ThemeSongsResult: empty,
+			SoundtrackSongsResult: empty
+		});
 	});
 }

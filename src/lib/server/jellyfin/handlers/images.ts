@@ -62,5 +62,7 @@ async function image(c: JfContext): Promise<Response> {
 }
 
 export function imageRoutes(router: Router): void {
-	router.on('GET', ['/items/:itemId/images/:type', '/items/:itemId/images/:type/:index'], image, { public: true });
+	router.on('GET', ['/items/:itemId/images/:type', '/items/:itemId/images/:type/:index'], image, {
+		public: true
+	});
 }

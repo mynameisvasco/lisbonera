@@ -1,0 +1,5 @@
+# Copy to .dev.vars for `wrangler dev`. In `pnpm dev` the dashboard skips the Access check.
+ENCRYPTION_KEY=change-me-to-a-long-random-string
+ACCESS_TEAM_DOMAIN=your-team.cloudflareaccess.com
+ACCESS_AUD=your-access-application-aud-tag
+ADMIN_EMAIL=you@example.com

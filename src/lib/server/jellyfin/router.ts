@@ -27,7 +27,9 @@ const NON_API_PREFIXES = ['/admin', '/_app', '/favicon', '/robots.txt'];
 export function isJellyfinPath(pathname: string): boolean {
 	if (pathname === '/') return false;
 	const lower = pathname.toLowerCase();
-	return !NON_API_PREFIXES.some((prefix) => lower === prefix || lower.startsWith(`${prefix}/`) || lower.startsWith(prefix + '.'));
+	return !NON_API_PREFIXES.some(
+		(prefix) => lower === prefix || lower.startsWith(`${prefix}/`) || lower.startsWith(prefix + '.')
+	);
 }
 
 /** Jellyfin routes are case-insensitive and some clients still use the legacy `/emby` prefix. */
@@ -56,12 +58,25 @@ function compile(path: string): { pattern: RegExp; keys: string[] } {
 export class Router {
 	readonly #routes: Route[] = [];
 
-	on(methods: string | string[], paths: string | string[], handler: Handler, options: RouteOptions = {}): this {
-		const methodSet = new Set((Array.isArray(methods) ? methods : [methods]).map((method) => method.toUpperCase()));
+	on(
+		methods: string | string[],
+		paths: string | string[],
+		handler: Handler,
+		options: RouteOptions = {}
+	): this {
+		const methodSet = new Set(
+			(Array.isArray(methods) ? methods : [methods]).map((method) => method.toUpperCase())
+		);
 		if (methodSet.has('GET')) methodSet.add('HEAD');
 		for (const path of Array.isArray(paths) ? paths : [paths]) {
 			const { pattern, keys } = compile(path);
-			this.#routes.push({ methods: methodSet, pattern, keys, handler, public: options.public ?? false });
+			this.#routes.push({
+				methods: methodSet,
+				pattern,
+				keys,
+				handler,
+				public: options.public ?? false
+			});
 		}
 		return this;
 	}

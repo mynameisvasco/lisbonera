@@ -17,7 +17,11 @@ export interface ResolvedSource {
 
 /** Streams a Jellyfin client can play from a redirect: plain http(s) without required proxy headers. */
 export function isPlayable(stream: Stream): stream is Stream & { url: string } {
-	return typeof stream.url === 'string' && /^https?:\/\//i.test(stream.url) && !stream.behaviorHints?.proxyHeaders;
+	return (
+		typeof stream.url === 'string' &&
+		/^https?:\/\//i.test(stream.url) &&
+		!stream.behaviorHints?.proxyHeaders
+	);
 }
 
 export function sourceName(addonName: string, stream: Stream): string {
@@ -98,7 +102,11 @@ export async function resolveSources(scope: Scope, entry: IdEntry): Promise<Reso
 }
 
 /** URL for a source id; unknown ids (including clients that send the item id) fall back to the first source. */
-export async function sourceUrl(scope: Scope, entry: IdEntry, mediaSourceId: string | undefined): Promise<string | null> {
+export async function sourceUrl(
+	scope: Scope,
+	entry: IdEntry,
+	mediaSourceId: string | undefined
+): Promise<string | null> {
 	const sources = await resolveSources(scope, entry);
 	const wanted = mediaSourceId?.toLowerCase().replace(/-/g, '');
 	return (sources.find((source) => source.id === wanted) ?? sources[0])?.url ?? null;

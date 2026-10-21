@@ -37,14 +37,18 @@ export function supports(manifest: Manifest, resource: string, type: string, id?
 		if (name !== resource) continue;
 		const types = (typeof entry === 'string' ? undefined : entry.types) ?? manifest.types;
 		if (!types.includes(type)) continue;
-		const prefixes = (typeof entry === 'string' ? undefined : entry.idPrefixes) ?? manifest.idPrefixes;
+		const prefixes =
+			(typeof entry === 'string' ? undefined : entry.idPrefixes) ?? manifest.idPrefixes;
 		if (id && prefixes?.length && !prefixes.some((prefix) => id.startsWith(prefix))) continue;
 		return true;
 	}
 	return false;
 }
 
-export function catalogExtras(catalog: ManifestCatalog): { supported: Set<string>; required: Set<string> } {
+export function catalogExtras(catalog: ManifestCatalog): {
+	supported: Set<string>;
+	required: Set<string>;
+} {
 	const supported = new Set(catalog.extraSupported ?? []);
 	const required = new Set(catalog.extraRequired ?? []);
 	for (const extra of catalog.extra ?? []) {
@@ -98,10 +102,14 @@ export async function fetchCatalog(
 	extra: Record<string, string | number> = {}
 ): Promise<MetaPreview[]> {
 	try {
-		const body = await fetchJson<{ metas?: MetaPreview[] }>(scope, catalogUrl(addon, type, catalogId, extra), {
-			ttl: CATALOG_TTL,
-			timeoutMs: CATALOG_TIMEOUT
-		});
+		const body = await fetchJson<{ metas?: MetaPreview[] }>(
+			scope,
+			catalogUrl(addon, type, catalogId, extra),
+			{
+				ttl: CATALOG_TTL,
+				timeoutMs: CATALOG_TIMEOUT
+			}
+		);
 		return (body.metas ?? []).filter((meta) => meta?.id && meta.name);
 	} catch (error) {
 		recordError(scope, addon, error);
@@ -110,7 +118,12 @@ export async function fetchCatalog(
 }
 
 /** Asks each enabled addon that declares `meta` support for this id, in priority order. */
-export async function fetchMeta(scope: Scope, addons: Addon[], type: string, id: string): Promise<Meta | null> {
+export async function fetchMeta(
+	scope: Scope,
+	addons: Addon[],
+	type: string,
+	id: string
+): Promise<Meta | null> {
 	for (const addon of addons) {
 		if (!addon.enabled || !addon.manifest || !supports(addon.manifest, 'meta', type, id)) continue;
 		try {

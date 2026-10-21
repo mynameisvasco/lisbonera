@@ -39,7 +39,9 @@ interface AccountRow {
 	updated_at: number;
 }
 
-export function toMediaRef(entry: Pick<IdEntry, 'kind' | 'stremioId' | 'season' | 'episode'>): MediaRef | null {
+export function toMediaRef(
+	entry: Pick<IdEntry, 'kind' | 'stremioId' | 'season' | 'episode'>
+): MediaRef | null {
 	const ids: Pick<MediaRef, 'imdb' | 'tmdb'> = {};
 	if (/^tt\d+$/.test(entry.stremioId)) ids.imdb = entry.stremioId;
 	else if (/^tmdb:\d+$/.test(entry.stremioId)) ids.tmdb = entry.stremioId.slice(5);
@@ -57,11 +59,22 @@ function credentialsKey(provider: string): string {
 	return `scrobble:${provider}:credentials`;
 }
 
-export async function saveCredentials(env: Env, provider: string, credentials: ProviderCredentials): Promise<void> {
-	await setSetting(env.DB, credentialsKey(provider), await encrypt(env.ENCRYPTION_KEY, JSON.stringify(credentials)));
+export async function saveCredentials(
+	env: Env,
+	provider: string,
+	credentials: ProviderCredentials
+): Promise<void> {
+	await setSetting(
+		env.DB,
+		credentialsKey(provider),
+		await encrypt(env.ENCRYPTION_KEY, JSON.stringify(credentials))
+	);
 }
 
-export async function loadCredentials(env: Env, provider: string): Promise<ProviderCredentials | null> {
+export async function loadCredentials(
+	env: Env,
+	provider: string
+): Promise<ProviderCredentials | null> {
 	const stored = await getSetting(env.DB, credentialsKey(provider));
 	if (!stored) return null;
 	try {
@@ -105,7 +118,9 @@ export async function saveAccount(
 export async function setActive(db: D1Database, provider: string, active: boolean): Promise<void> {
 	await db.batch([
 		...(active ? [db.prepare('UPDATE scrobble_accounts SET active = 0')] : []),
-		db.prepare('UPDATE scrobble_accounts SET active = ? WHERE provider = ?').bind(active ? 1 : 0, provider)
+		db
+			.prepare('UPDATE scrobble_accounts SET active = ? WHERE provider = ?')
+			.bind(active ? 1 : 0, provider)
 	]);
 	memo.clear();
 }
@@ -136,7 +151,9 @@ async function loadActive(env: Env): Promise<ActiveAccount | null> {
 	if (cached?.fresh) return cached.value;
 
 	let active: ActiveAccount | null = null;
-	const row = await env.DB.prepare('SELECT * FROM scrobble_accounts WHERE active = 1').first<AccountRow>();
+	const row = await env.DB.prepare(
+		'SELECT * FROM scrobble_accounts WHERE active = 1'
+	).first<AccountRow>();
 	const definition = row ? getProviderDefinition(row.provider) : null;
 	if (row && definition) {
 		const credentials = await loadCredentials(env, row.provider);
@@ -168,8 +185,14 @@ export async function activeScrobbler(scope: Scope): Promise<ActiveScrobbler | n
 		account.tokens,
 		async (tokens) => {
 			account.tokens = tokens;
-			await scope.env.DB.prepare('UPDATE scrobble_accounts SET tokens = ?, updated_at = ? WHERE provider = ?')
-				.bind(await encrypt(scope.env.ENCRYPTION_KEY, JSON.stringify(tokens)), Date.now(), account.definition.id)
+			await scope.env.DB.prepare(
+				'UPDATE scrobble_accounts SET tokens = ?, updated_at = ? WHERE provider = ?'
+			)
+				.bind(
+					await encrypt(scope.env.ENCRYPTION_KEY, JSON.stringify(tokens)),
+					Date.now(),
+					account.definition.id
+				)
 				.run();
 		},
 		fetcher
@@ -194,7 +217,8 @@ async function cachedRead<T>(
 		memo.set(memoKey, value);
 		return value;
 	} catch (error) {
-		if (!(error instanceof BudgetExhausted)) scope.exec.waitUntil(recordError(scope.env.DB, scrobbler.id, error));
+		if (!(error instanceof BudgetExhausted))
+			scope.exec.waitUntil(recordError(scope.env.DB, scrobbler.id, error));
 		return cached?.value ?? fallback;
 	}
 }
@@ -208,8 +232,11 @@ export function playback(scope: Scope): Promise<PlaybackEntry[]> {
 }
 
 export function showProgress(scope: Scope, show: MediaRef): Promise<ShowProgress | null> {
-	return cachedRead<ShowProgress | null>(scope, `show:${show.imdb ?? show.tmdb}`, null, (provider) =>
-		provider.showProgress(show)
+	return cachedRead<ShowProgress | null>(
+		scope,
+		`show:${show.imdb ?? show.tmdb}`,
+		null,
+		(provider) => provider.showProgress(show)
 	);
 }
 

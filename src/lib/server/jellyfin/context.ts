@@ -17,6 +17,9 @@ export interface JfContext extends Scope {
 }
 
 export async function dtoContext(origin: string, username: string): Promise<DtoContext> {
-	const [serverId, userId] = await Promise.all([guid(`server|${origin}`), guid(`user|${username.toLowerCase()}`)]);
+	const [serverId, userId] = await Promise.all([
+		guid(`server|${origin}`),
+		guid(`user|${username.toLowerCase()}`)
+	]);
 	return { serverId, userId };
 }

@@ -29,7 +29,9 @@ async function runtimeOf(c: JfContext, entry: IdEntry): Promise<number | null> {
 function report(kind: 'start' | 'progress' | 'stop') {
 	return async (c: JfContext): Promise<Response> => {
 		const body = await readJson<PlaybackReport>(c.request);
-		const itemId = String(body.ItemId ?? c.query.get('ItemId') ?? '').toLowerCase().replace(/-/g, '');
+		const itemId = String(body.ItemId ?? c.query.get('ItemId') ?? '')
+			.toLowerCase()
+			.replace(/-/g, '');
 		const entry = itemId ? await c.ids.resolve(itemId) : null;
 		const ref = entry ? toMediaRef(entry) : null;
 		if (!entry || !ref || ref.type === 'show') return noContent();
@@ -79,13 +81,27 @@ function markPlayed(played: boolean) {
 }
 
 export function sessionRoutes(router: Router): void {
-	router.on('POST', ['/sessions/capabilities', '/sessions/capabilities/full', '/sessions/playing/ping'], () => noContent());
+	router.on(
+		'POST',
+		['/sessions/capabilities', '/sessions/capabilities/full', '/sessions/playing/ping'],
+		() => noContent()
+	);
 	router.on('POST', '/sessions/playing', report('start'));
 	router.on('POST', '/sessions/playing/progress', report('progress'));
 	router.on('POST', '/sessions/playing/stopped', report('stop'));
-	router.on('POST', ['/users/:userId/playeditems/:itemId', '/userplayeditems/:itemId'], markPlayed(true));
-	router.on('DELETE', ['/users/:userId/playeditems/:itemId', '/userplayeditems/:itemId'], markPlayed(false));
-	router.on(['POST', 'DELETE'], ['/users/:userId/favoriteitems/:itemId', '/userfavoriteitems/:itemId'], (c) =>
-		json(playedState(c.params.itemId, false))
+	router.on(
+		'POST',
+		['/users/:userId/playeditems/:itemId', '/userplayeditems/:itemId'],
+		markPlayed(true)
+	);
+	router.on(
+		'DELETE',
+		['/users/:userId/playeditems/:itemId', '/userplayeditems/:itemId'],
+		markPlayed(false)
+	);
+	router.on(
+		['POST', 'DELETE'],
+		['/users/:userId/favoriteitems/:itemId', '/userfavoriteitems/:itemId'],
+		(c) => json(playedState(c.params.itemId, false))
 	);
 }

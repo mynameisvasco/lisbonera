@@ -1,4 +1,5 @@
-export const USER_AGENT = 'Mozilla/5.0 (compatible; Lisbonera/0.1; +https://github.com/lisbonera/lisbonera)';
+export const USER_AGENT =
+	'Mozilla/5.0 (compatible; Lisbonera/0.1; +https://github.com/lisbonera/lisbonera)';
 
 /**
  * Free-plan Workers allow 50 external subrequests per invocation and Cache API calls count towards it.
@@ -95,7 +96,11 @@ export interface FetchJsonOptions {
  * Budgeted JSON fetch with an isolate cache in front and Cloudflare's edge cache behind (`cf.cacheTtl`).
  * Serves a stale isolate copy when the upstream fails.
  */
-export async function fetchJson<T>(scope: Scope, url: string, options: FetchJsonOptions): Promise<T> {
+export async function fetchJson<T>(
+	scope: Scope,
+	url: string,
+	options: FetchJsonOptions
+): Promise<T> {
 	const cached = options.ttl > 0 ? memo.get<T>(url, options.ttl * 1000) : undefined;
 	if (cached?.fresh) return cached.value;
 

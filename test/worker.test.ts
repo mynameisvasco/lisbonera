@@ -19,15 +19,18 @@ describe('routing', () => {
 		expect(normalizePath('/jellyfin/System/Info')).toBe('/system/info');
 	});
 
-	it.each(['/System/Info/Public', '/system/info/public', '/emby/System/Info/Public'])('serves %s', async (path) => {
-		const response = await call(path);
-		expect(response.status).toBe(200);
-		expect(response.headers.get('access-control-allow-origin')).toBe('*');
-		const body = (await response.json()) as { ProductName: string; Id: string; Version: string };
-		expect(body.ProductName).toBe('Jellyfin Server');
-		expect(body.Id).toMatch(/^[0-9a-f]{32}$/);
-		expect(body.Version).toBe('10.11.0');
-	});
+	it.each(['/System/Info/Public', '/system/info/public', '/emby/System/Info/Public'])(
+		'serves %s',
+		async (path) => {
+			const response = await call(path);
+			expect(response.status).toBe(200);
+			expect(response.headers.get('access-control-allow-origin')).toBe('*');
+			const body = (await response.json()) as { ProductName: string; Id: string; Version: string };
+			expect(body.ProductName).toBe('Jellyfin Server');
+			expect(body.Id).toMatch(/^[0-9a-f]{32}$/);
+			expect(body.Version).toBe('10.11.0');
+		}
+	);
 
 	it('answers CORS preflight', async () => {
 		const response = await call('/Items', { method: 'OPTIONS' });

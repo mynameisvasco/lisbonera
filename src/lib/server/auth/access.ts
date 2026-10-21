@@ -22,9 +22,13 @@ export type AccessConfig = Pick<Env, 'ACCESS_TEAM_DOMAIN' | 'ACCESS_AUD' | 'ADMI
  * Verifies the Cloudflare Access JWT. Access already blocks unauthenticated requests at the edge; this check stops
  * requests that reach the Worker another way (e.g. the workers.dev URL) and pins the allowed email.
  */
-export async function verifyAccess(request: Request, config: AccessConfig): Promise<{ email: string } | null> {
+export async function verifyAccess(
+	request: Request,
+	config: AccessConfig
+): Promise<{ email: string } | null> {
 	const token = request.headers.get('cf-access-jwt-assertion');
-	if (!token || !config.ACCESS_TEAM_DOMAIN || !config.ACCESS_AUD || !config.ADMIN_EMAIL) return null;
+	if (!token || !config.ACCESS_TEAM_DOMAIN || !config.ACCESS_AUD || !config.ADMIN_EMAIL)
+		return null;
 	try {
 		const { payload } = await jwtVerify(token, jwks(config.ACCESS_TEAM_DOMAIN), {
 			issuer: teamOrigin(config.ACCESS_TEAM_DOMAIN),

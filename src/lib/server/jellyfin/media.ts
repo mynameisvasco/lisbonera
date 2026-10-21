@@ -2,13 +2,32 @@ import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 import type { IdEntry } from '../ids';
 import type { MediaRef, ShowProgress } from '../scrobble/types';
 import { mediaKey } from '../scrobble/types';
-import { playback, recentShows, showProgress, toMediaRef, watchedMovies } from '../scrobble/service';
-import { BudgetExhausted, UpstreamError } from '../scope';
-import { enabledLibraries, getAddon, listAddons, listCollectionItems, type Library } from '../store';
+import {
+	playback,
+	recentShows,
+	showProgress,
+	toMediaRef,
+	watchedMovies
+} from '../scrobble/service';
+import { BudgetExhausted, UpstreamError, type Scope } from '../scope';
+import {
+	enabledLibraries,
+	getAddon,
+	listAddons,
+	listCollectionItems,
+	type Library
+} from '../store';
 import { fetchCatalog, fetchMeta, isSearchable } from '../stremio/client';
 import type { Meta, MetaPreview, Video } from '../stremio/types';
 import type { JfContext } from './context';
-import { episodeItem, movieItem, runtimeTicks, seasonItem, seriesItem, type UserState } from './dto';
+import {
+	episodeItem,
+	movieItem,
+	runtimeTicks,
+	seasonItem,
+	seriesItem,
+	type UserState
+} from './dto';
 
 /** Upper bound of items exposed per library; keeps full-library syncs (Infuse) inside the free plan. */
 export const CATALOG_LIMIT = 500;
@@ -109,7 +128,11 @@ export function asMediaType(type: string): MediaType | null {
 	return type === 'movie' || type === 'series' ? type : null;
 }
 
-export async function loadMeta(c: JfContext, type: MediaType, stremioId: string): Promise<Meta | null> {
+export async function loadMeta(
+	c: JfContext,
+	type: MediaType,
+	stremioId: string
+): Promise<Meta | null> {
 	try {
 		return await fetchMeta(c, await listAddons(c.env.DB), type, stremioId);
 	} catch (error) {
@@ -138,7 +161,9 @@ function movieState(watched: Set<string>, entry: IdEntry): UserState | undefined
 
 /** Builds list DTOs. Only movies get watched state here; per-show progress is fetched when a show is opened. */
 export async function listItems(c: JfContext, listed: Listed[]): Promise<BaseItemDto[]> {
-	const watched = listed.some((item) => item.type === 'movie') ? await watchedMovies(c) : new Set<string>();
+	const watched = listed.some((item) => item.type === 'movie')
+		? await watchedMovies(c)
+		: new Set<string>();
 	return Promise.all(
 		listed.map(async ({ meta, type }) => {
 			const entry = await registerMeta(c, meta, type);
@@ -157,8 +182,10 @@ export interface SortSpec {
 const SORTERS: Record<string, (a: MetaPreview, b: MetaPreview) => number> = {
 	sortname: (a, b) => a.name.localeCompare(b.name),
 	name: (a, b) => a.name.localeCompare(b.name),
-	productionyear: (a, b) => Number(String(a.releaseInfo ?? 0).slice(0, 4)) - Number(String(b.releaseInfo ?? 0).slice(0, 4)),
-	premieredate: (a, b) => Number(String(a.releaseInfo ?? 0).slice(0, 4)) - Number(String(b.releaseInfo ?? 0).slice(0, 4)),
+	productionyear: (a, b) =>
+		Number(String(a.releaseInfo ?? 0).slice(0, 4)) - Number(String(b.releaseInfo ?? 0).slice(0, 4)),
+	premieredate: (a, b) =>
+		Number(String(a.releaseInfo ?? 0).slice(0, 4)) - Number(String(b.releaseInfo ?? 0).slice(0, 4)),
 	communityrating: (a, b) => Number(a.imdbRating ?? 0) - Number(b.imdbRating ?? 0)
 };
 
@@ -178,12 +205,20 @@ export function sorter(sort: SortSpec): ((a: Listed, b: Listed) => number) | nul
 	};
 }
 
-async function libraryFetcher(c: JfContext, library: Library): Promise<(skip: number) => Promise<Listed[]>> {
+async function libraryFetcher(
+	c: JfContext,
+	library: Library
+): Promise<(skip: number) => Promise<Listed[]>> {
 	if (library.kind === 'collection') {
 		const items = await listCollectionItems(c.env.DB, library.id);
 		const listed: Listed[] = items.map((item) => ({
 			type: item.stremioType,
-			meta: { id: item.stremioId, type: item.stremioType, name: item.name, poster: item.poster ?? undefined }
+			meta: {
+				id: item.stremioId,
+				type: item.stremioType,
+				name: item.name,
+				poster: item.poster ?? undefined
+			}
 		}));
 		return async (skip) => (skip === 0 ? listed : []);
 	}
@@ -192,7 +227,10 @@ async function libraryFetcher(c: JfContext, library: Library): Promise<(skip: nu
 	if (!addon?.enabled || !type || !library.catalogId) return async () => [];
 	const catalogId = library.catalogId;
 	return async (skip) =>
-		(await fetchCatalog(c, addon, type, catalogId, skip > 0 ? { skip } : {})).map((meta) => ({ meta, type }));
+		(await fetchCatalog(c, addon, type, catalogId, skip > 0 ? { skip } : {})).map((meta) => ({
+			meta,
+			type
+		}));
 }
 
 export async function libraryPage(
@@ -217,10 +255,17 @@ export async function libraryPage(
 			all: options.all
 		});
 	}
-	const all = await paginate(fetchPage, 0, 0, { cap: CATALOG_LIMIT, key: (item) => item.meta.id, all: true });
+	const all = await paginate(fetchPage, 0, 0, {
+		cap: CATALOG_LIMIT,
+		key: (item) => item.meta.id,
+		all: true
+	});
 	let items = types.length > 0 ? all.items.filter((item) => types.includes(item.type)) : all.items;
 	if (compare) items = [...items].sort(compare);
-	return { items: limit > 0 ? items.slice(start, start + limit) : items.slice(start), total: items.length };
+	return {
+		items: limit > 0 ? items.slice(start, start + limit) : items.slice(start),
+		total: items.length
+	};
 }
 
 /** Concatenates every enabled library of the requested types; used for library-wide queries without a parent. */
@@ -232,7 +277,8 @@ export async function allLibrariesPage(
 	sort?: SortSpec
 ): Promise<Page<Listed>> {
 	const libraries = (await enabledLibraries(c.env.DB)).filter(
-		(library) => library.catalogType === 'mixed' || types.length === 0 || types.includes(library.catalogType)
+		(library) =>
+			library.catalogType === 'mixed' || types.length === 0 || types.includes(library.catalogType)
 	);
 	const seen = new Set<string>();
 	const items: Listed[] = [];
@@ -247,22 +293,34 @@ export async function allLibrariesPage(
 	}
 	const compare = sort ? sorter(sort) : null;
 	if (compare) items.sort(compare);
-	return { items: limit > 0 ? items.slice(start, start + limit) : items.slice(start), total: items.length };
+	return {
+		items: limit > 0 ? items.slice(start, start + limit) : items.slice(start),
+		total: items.length
+	};
 }
 
-export async function search(c: JfContext, term: string, types: MediaType[], limit: number): Promise<Listed[]> {
+export async function search(
+	c: Scope,
+	term: string,
+	types: MediaType[],
+	limit: number
+): Promise<Listed[]> {
 	const addons = (await listAddons(c.env.DB)).filter((addon) => addon.enabled && addon.manifest);
 	const targets = addons.flatMap((addon) =>
 		addon
 			.manifest!.catalogs.filter((catalog) => isSearchable(catalog))
 			.map((catalog) => ({ addon, catalog, type: asMediaType(catalog.type) }))
-			.filter((target): target is typeof target & { type: MediaType } =>
-				target.type !== null && (types.length === 0 || types.includes(target.type))
+			.filter(
+				(target): target is typeof target & { type: MediaType } =>
+					target.type !== null && (types.length === 0 || types.includes(target.type))
 			)
 	);
 	const results = await Promise.allSettled(
 		targets.map(async ({ addon, catalog, type }) =>
-			(await fetchCatalog(c, addon, type, catalog.id, { search: term })).map((meta) => ({ meta, type }))
+			(await fetchCatalog(c, addon, type, catalog.id, { search: term })).map((meta) => ({
+				meta,
+				type
+			}))
 		)
 	);
 	const seen = new Set<string>();
@@ -309,13 +367,17 @@ export async function loadSeries(c: JfContext, entry: IdEntry): Promise<SeriesVi
 
 export function seasonState(view: SeriesView, group: SeasonGroup): UserState | undefined {
 	if (!view.progress) return undefined;
-	const unplayed = group.videos.filter((video) => !view.progress!.watched.has(`${group.season}:${video.episode}`)).length;
+	const unplayed = group.videos.filter(
+		(video) => !view.progress!.watched.has(`${group.season}:${video.episode}`)
+	).length;
 	return { played: unplayed === 0, unplayed };
 }
 
 export function seriesState(view: SeriesView): UserState | undefined {
 	if (!view.progress) return undefined;
-	const states = view.seasons.filter((season) => season.group.season !== 0).map((season) => seasonState(view, season.group)!);
+	const states = view.seasons
+		.filter((season) => season.group.season !== 0)
+		.map((season) => seasonState(view, season.group)!);
 	const unplayed = states.reduce((sum, state) => sum + (state.unplayed ?? 0), 0);
 	return { played: states.length > 0 && unplayed === 0, unplayed };
 }
@@ -326,7 +388,14 @@ export function seriesDto(c: JfContext, view: SeriesView): BaseItemDto {
 
 export function seasonDtos(c: JfContext, view: SeriesView): BaseItemDto[] {
 	return view.seasons.map(({ group, entry }) =>
-		seasonItem(c.dto, entry, view.entry, view.meta.name, group.videos.length, seasonState(view, group))
+		seasonItem(
+			c.dto,
+			entry,
+			view.entry,
+			view.meta.name,
+			group.videos.length,
+			seasonState(view, group)
+		)
 	);
 }
 
@@ -355,7 +424,9 @@ export async function episodeDtos(
 			const state: UserState | undefined = view.progress
 				? { played: view.progress.watched.has(key), progress: progressByKey.get(key) }
 				: undefined;
-			items.push(episodeItem(c.dto, episode, view.entry, view.meta.name, seasonEntry.guid, video, state));
+			items.push(
+				episodeItem(c.dto, episode, view.entry, view.meta.name, seasonEntry.guid, video, state)
+			);
 		}
 	}
 	return items;
@@ -381,18 +452,31 @@ function stremioIdOf(ref: MediaRef): string | null {
 	return null;
 }
 
-async function episodeFromRef(c: JfContext, ref: MediaRef, progress?: number): Promise<BaseItemDto | null> {
+async function episodeFromRef(
+	c: JfContext,
+	ref: MediaRef,
+	progress?: number
+): Promise<BaseItemDto | null> {
 	const stremioId = stremioIdOf(ref);
 	if (!stremioId || ref.season === undefined || ref.episode === undefined) return null;
 	const series = await c.ids.register({ kind: 'series', stremioId });
 	const view = await loadSeries(c, series);
 	if (!view) return null;
-	const items = await episodeDtos(c, view, ref.season, progress !== undefined ? new Map([[`${ref.season}:${ref.episode}`, progress]]) : undefined);
+	const items = await episodeDtos(
+		c,
+		view,
+		ref.season,
+		progress !== undefined ? new Map([[`${ref.season}:${ref.episode}`, progress]]) : undefined
+	);
 	return items.find((item) => item.IndexNumber === ref.episode) ?? null;
 }
 
 /** "Continue watching" from the active scrobble provider. */
-export async function resumeItems(c: JfContext, limit: number, types: MediaType[]): Promise<BaseItemDto[]> {
+export async function resumeItems(
+	c: JfContext,
+	limit: number,
+	types: MediaType[]
+): Promise<BaseItemDto[]> {
 	const entries = (await playback(c)).filter((entry) =>
 		types.length === 0 ? true : types.includes(entry.ref.type === 'movie' ? 'movie' : 'series')
 	);
@@ -414,14 +498,25 @@ export async function resumeItems(c: JfContext, limit: number, types: MediaType[
 }
 
 /** "Next up": the next unwatched episode of recently watched shows, or of one show when `seriesId` is given. */
-export async function nextUpItems(c: JfContext, limit: number, series?: IdEntry): Promise<BaseItemDto[]> {
-	const shows: MediaRef[] = series ? [toMediaRef(series)].filter((ref): ref is MediaRef => ref !== null) : await recentShows(c, limit);
+export async function nextUpItems(
+	c: JfContext,
+	limit: number,
+	series?: IdEntry
+): Promise<BaseItemDto[]> {
+	const shows: MediaRef[] = series
+		? [toMediaRef(series)].filter((ref): ref is MediaRef => ref !== null)
+		: await recentShows(c, limit);
 	const items: BaseItemDto[] = [];
 	for (const show of shows) {
 		if (items.length >= limit || c.budget.remaining < 3) break;
 		const progress = await showProgress(c, show);
 		if (!progress?.next) continue;
-		const item = await episodeFromRef(c, { ...show, type: 'episode', season: progress.next.season, episode: progress.next.episode });
+		const item = await episodeFromRef(c, {
+			...show,
+			type: 'episode',
+			season: progress.next.season,
+			episode: progress.next.episode
+		});
 		if (item) items.push(item);
 	}
 	return items;
@@ -431,22 +526,34 @@ export async function nextUpItems(c: JfContext, limit: number, series?: IdEntry)
 export async function itemDto(c: JfContext, entry: IdEntry): Promise<BaseItemDto | null> {
 	if (entry.kind === 'movie') {
 		const meta = await loadMeta(c, 'movie', entry.stremioId);
-		const fallback: MetaPreview = { id: entry.stremioId, type: 'movie', name: entry.name ?? entry.stremioId };
+		const fallback: MetaPreview = {
+			id: entry.stremioId,
+			type: 'movie',
+			name: entry.name ?? entry.stremioId
+		};
 		const movie = meta ? await registerMeta(c, meta, 'movie') : entry;
 		const [watched, inProgress] = await Promise.all([watchedMovies(c), playback(c)]);
 		const ref = toMediaRef(movie);
 		const progress = ref
-			? inProgress.find((item) => item.ref.type === 'movie' && mediaKey(item.ref).some((key) => mediaKey(ref).includes(key)))?.progress
+			? inProgress.find(
+					(item) =>
+						item.ref.type === 'movie' &&
+						mediaKey(item.ref).some((key) => mediaKey(ref).includes(key))
+				)?.progress
 			: undefined;
 		const state = movieState(watched, movie);
 		return movieItem(c.dto, movie, meta ?? fallback, state ? { ...state, progress } : undefined);
 	}
 
-	const series = entry.kind === 'series' ? entry : await c.ids.register({ kind: 'series', stremioId: entry.stremioId });
+	const series =
+		entry.kind === 'series'
+			? entry
+			: await c.ids.register({ kind: 'series', stremioId: entry.stremioId });
 	const view = await loadSeries(c, series);
 	if (!view) return null;
 	if (entry.kind === 'series') return seriesDto(c, view);
-	if (entry.kind === 'season') return seasonDtos(c, view).find((item) => item.IndexNumber === entry.season) ?? null;
+	if (entry.kind === 'season')
+		return seasonDtos(c, view).find((item) => item.IndexNumber === entry.season) ?? null;
 	const progress = await episodeProgress(c, view.entry);
 	const episodes = await episodeDtos(c, view, entry.season, progress);
 	return episodes.find((item) => item.Id === entry.guid) ?? null;

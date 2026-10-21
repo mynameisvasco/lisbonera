@@ -57,7 +57,10 @@ describe('paginate', () => {
 	});
 
 	it('caps the library size', async () => {
-		const { fetchPage } = pages(Array.from({ length: 50 }, (_, i) => i), 10);
+		const { fetchPage } = pages(
+			Array.from({ length: 50 }, (_, i) => i),
+			10
+		);
 		const page = await paginate(fetchPage, 0, 0, { cap: 25, key, all: true });
 		expect(page.items).toHaveLength(25);
 		expect(page.total).toBe(25);
@@ -70,7 +73,9 @@ describe('videosToSeasons', () => {
 		expect(seasons.map((season) => season.season)).toEqual([1, 2, 0]);
 		expect(seasons[0].videos.map((video) => video.episode)).toEqual([1, 2]);
 		expect(seasons[1].videos[0].episode).toBe(1);
-		expect(seasons.flatMap((season) => season.videos).some((video) => video.id.endsWith('extra'))).toBe(false);
+		expect(
+			seasons.flatMap((season) => season.videos).some((video) => video.id.endsWith('extra'))
+		).toBe(false);
 	});
 });
 
@@ -96,7 +101,9 @@ describe('helpers', () => {
 	});
 
 	it('normalizes addon URLs', () => {
-		expect(normalizeAddonUrl('stremio://addon.test/abc/manifest.json')).toBe('https://addon.test/abc');
+		expect(normalizeAddonUrl('stremio://addon.test/abc/manifest.json')).toBe(
+			'https://addon.test/abc'
+		);
 		expect(normalizeAddonUrl('https://addon.test/')).toBe('https://addon.test');
 		expect(() => normalizeAddonUrl('ftp://addon.test')).toThrow();
 	});
@@ -105,7 +112,9 @@ describe('helpers', () => {
 		expect(isPlayable({ url: 'https://x.test/a.mkv' })).toBe(true);
 		expect(isPlayable({ infoHash: 'abc' })).toBe(false);
 		expect(isPlayable({ url: 'magnet:?xt=abc' })).toBe(false);
-		expect(isPlayable({ url: 'https://x.test/a', behaviorHints: { proxyHeaders: {} } })).toBe(false);
+		expect(isPlayable({ url: 'https://x.test/a', behaviorHints: { proxyHeaders: {} } })).toBe(
+			false
+		);
 	});
 });
 
@@ -113,7 +122,10 @@ describe('toMediaRef', () => {
 	const base = { season: null, episode: null };
 
 	it('maps IMDb and TMDB ids', () => {
-		expect(toMediaRef({ ...base, kind: 'movie', stremioId: 'tt1' })).toEqual({ type: 'movie', imdb: 'tt1' });
+		expect(toMediaRef({ ...base, kind: 'movie', stremioId: 'tt1' })).toEqual({
+			type: 'movie',
+			imdb: 'tt1'
+		});
 		expect(toMediaRef({ kind: 'episode', stremioId: 'tmdb:5', season: 1, episode: 2 })).toEqual({
 			type: 'episode',
 			tmdb: '5',

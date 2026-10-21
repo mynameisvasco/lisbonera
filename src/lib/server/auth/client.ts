@@ -90,7 +90,10 @@ export async function authenticate(db: D1Database, token: string | null): Promis
 	const cached = memo.get<Session | null>(`session:${tokenHash}`, SESSION_MEMO_TTL);
 	if (cached?.fresh) return cached.value;
 
-	const row = await db.prepare('SELECT * FROM sessions WHERE token_hash = ?').bind(tokenHash).first<SessionRow>();
+	const row = await db
+		.prepare('SELECT * FROM sessions WHERE token_hash = ?')
+		.bind(tokenHash)
+		.first<SessionRow>();
 	const session: Session | null = row
 		? {
 				tokenHash: row.token_hash,
@@ -111,7 +114,10 @@ export async function touchSession(db: D1Database, session: Session): Promise<vo
 	const now = Date.now();
 	if (now - session.lastSeenAt < LAST_SEEN_INTERVAL) return;
 	session.lastSeenAt = now;
-	await db.prepare('UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?').bind(now, session.tokenHash).run();
+	await db
+		.prepare('UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?')
+		.bind(now, session.tokenHash)
+		.run();
 }
 
 export async function login(
@@ -136,7 +142,16 @@ export async function login(
 				`INSERT INTO sessions (token_hash, app_password_id, client, device, device_id, version, created_at, last_seen_at)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 			)
-			.bind(await sha256Hex(token), appPassword.id, info.client, info.device, info.deviceId, info.version, now, now),
+			.bind(
+				await sha256Hex(token),
+				appPassword.id,
+				info.client,
+				info.device,
+				info.deviceId,
+				info.version,
+				now,
+				now
+			),
 		db.prepare('UPDATE app_passwords SET last_used_at = ? WHERE id = ?').bind(now, appPassword.id)
 	]);
 	return token;
@@ -147,7 +162,10 @@ export async function logout(db: D1Database, session: Session): Promise<void> {
 	await db.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(session.tokenHash).run();
 }
 
-export async function createAppPassword(db: D1Database, label: string): Promise<{ id: string; password: string }> {
+export async function createAppPassword(
+	db: D1Database,
+	label: string
+): Promise<{ id: string; password: string }> {
 	const id = randomHex(8);
 	const password = generateAppPassword();
 	await db
@@ -159,7 +177,9 @@ export async function createAppPassword(db: D1Database, label: string): Promise<
 
 export async function listAppPasswords(db: D1Database): Promise<AppPassword[]> {
 	const { results } = await db
-		.prepare('SELECT id, label, created_at, last_used_at FROM app_passwords ORDER BY created_at DESC')
+		.prepare(
+			'SELECT id, label, created_at, last_used_at FROM app_passwords ORDER BY created_at DESC'
+		)
 		.all<{ id: string; label: string; created_at: number; last_used_at: number | null }>();
 	return results.map((row) => ({
 		id: row.id,
@@ -175,7 +195,9 @@ export async function revokeAppPassword(db: D1Database, id: string): Promise<voi
 	memo.clear();
 }
 
-export async function listSessions(db: D1Database): Promise<(Session & { label: string; createdAt: number })[]> {
+export async function listSessions(
+	db: D1Database
+): Promise<(Session & { label: string; createdAt: number })[]> {
 	const { results } = await db
 		.prepare(
 			`SELECT sessions.*, app_passwords.label FROM sessions

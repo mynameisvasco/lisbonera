@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getJson, LIBRARY_ID, login, mockAddon, seed, SHOWS_LIBRARY_ID, call, authed } from './helpers';
+import {
+	getJson,
+	LIBRARY_ID,
+	login,
+	mockAddon,
+	seed,
+	SHOWS_LIBRARY_ID,
+	call,
+	authed
+} from './helpers';
 
 interface Item {
 	Id: string;
@@ -39,11 +48,17 @@ describe('libraries', () => {
 	});
 
 	it('pages a catalog with a look-ahead total (camelCase query, as Infuse sends it)', async () => {
-		const first = await getJson<Result>(`/Users/me/Items?parentId=${LIBRARY_ID}&startIndex=0&limit=2`, token);
+		const first = await getJson<Result>(
+			`/Users/me/Items?parentId=${LIBRARY_ID}&startIndex=0&limit=2`,
+			token
+		);
 		expect(first.Items.map((item) => item.Name)).toEqual(['Alpha', 'Bravo']);
 		expect(first.TotalRecordCount).toBe(3);
 
-		const second = await getJson<Result>(`/Items?ParentId=${LIBRARY_ID}&StartIndex=2&Limit=2`, token);
+		const second = await getJson<Result>(
+			`/Items?ParentId=${LIBRARY_ID}&StartIndex=2&Limit=2`,
+			token
+		);
 		expect(second.Items.map((item) => item.Name)).toEqual(['Charlie']);
 		expect(second.TotalRecordCount).toBe(3);
 		expect(second.StartIndex).toBe(2);
@@ -69,7 +84,10 @@ describe('libraries', () => {
 	});
 
 	it('lists every library of a type without a parent', async () => {
-		const result = await getJson<Result>('/Items?IncludeItemTypes=Movie&Recursive=true&Limit=10', token);
+		const result = await getJson<Result>(
+			'/Items?IncludeItemTypes=Movie&Recursive=true&Limit=10',
+			token
+		);
 		expect(result.Items).toHaveLength(3);
 		const episodes = await getJson<Result>('/Items?IncludeItemTypes=Episode&Recursive=true', token);
 		expect(episodes.Items).toEqual([]);
@@ -90,11 +108,21 @@ describe('series', () => {
 	it('lists seasons and episodes with stable relationships', async () => {
 		const id = await seriesId();
 		const seasons = await getJson<Result>(`/Shows/${id}/Seasons`, token);
-		expect(seasons.Items.map((season) => season.Name)).toEqual(['Season 1', 'Season 2', 'Specials']);
+		expect(seasons.Items.map((season) => season.Name)).toEqual([
+			'Season 1',
+			'Season 2',
+			'Specials'
+		]);
 
 		const season1 = seasons.Items[0];
 		const episodes = await getJson<Result>(`/Shows/${id}/Episodes?SeasonId=${season1.Id}`, token);
-		expect(episodes.Items.map((episode) => [episode.ParentIndexNumber, episode.IndexNumber, episode.Name])).toEqual([
+		expect(
+			episodes.Items.map((episode) => [
+				episode.ParentIndexNumber,
+				episode.IndexNumber,
+				episode.Name
+			])
+		).toEqual([
 			[1, 1, 'First'],
 			[1, 2, 'Second']
 		]);
@@ -104,7 +132,9 @@ describe('series', () => {
 		}
 
 		const viaParent = await getJson<Result>(`/Items?ParentId=${season1.Id}`, token);
-		expect(viaParent.Items.map((episode) => episode.Id)).toEqual(episodes.Items.map((episode) => episode.Id));
+		expect(viaParent.Items.map((episode) => episode.Id)).toEqual(
+			episodes.Items.map((episode) => episode.Id)
+		);
 	});
 
 	it('resolves every id it hands out', async () => {
@@ -122,9 +152,15 @@ describe('series', () => {
 
 describe('search', () => {
 	it('searches catalogs that support it', async () => {
-		const result = await getJson<Result>('/Items?SearchTerm=bra&IncludeItemTypes=Movie,Series&Recursive=true', token);
+		const result = await getJson<Result>(
+			'/Items?SearchTerm=bra&IncludeItemTypes=Movie,Series&Recursive=true',
+			token
+		);
 		expect(result.Items.map((item) => item.Name)).toEqual(['Bravo']);
-		const hints = await getJson<{ SearchHints: { Name: string }[] }>('/Search/Hints?SearchTerm=alp', token);
+		const hints = await getJson<{ SearchHints: { Name: string }[] }>(
+			'/Search/Hints?SearchTerm=alp',
+			token
+		);
 		expect(hints.SearchHints.map((hint) => hint.Name)).toEqual(['Alpha']);
 	});
 });
@@ -134,7 +170,12 @@ describe('images', () => {
 		const { Items } = await getJson<Result>(`/Items?ParentId=${LIBRARY_ID}&Limit=1`, token);
 		const { http, HttpResponse } = await import('msw');
 		const { network } = await import('./network');
-		network.use(http.get('https://img.test/1.jpg', () => new HttpResponse('jpeg', { headers: { 'content-type': 'image/jpeg' } })));
+		network.use(
+			http.get(
+				'https://img.test/1.jpg',
+				() => new HttpResponse('jpeg', { headers: { 'content-type': 'image/jpeg' } })
+			)
+		);
 		const response = await call(`/Items/${Items[0].Id}/Images/Primary?maxWidth=300`);
 		expect(response.status).toBe(200);
 		expect(response.headers.get('cache-control')).toContain('immutable');

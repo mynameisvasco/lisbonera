@@ -19,7 +19,8 @@ export interface IdEntry {
 	runtimeTicks: number | null;
 }
 
-export type IdInput = Pick<IdEntry, 'kind' | 'stremioId'> & Partial<Omit<IdEntry, 'guid' | 'kind' | 'stremioId'>>;
+export type IdInput = Pick<IdEntry, 'kind' | 'stremioId'> &
+	Partial<Omit<IdEntry, 'guid' | 'kind' | 'stremioId'>>;
 
 interface IdRow {
 	guid: string;
@@ -41,7 +42,12 @@ const COLUMNS = 11;
 const ROWS_PER_STATEMENT = Math.floor(100 / COLUMNS);
 
 /** Ids are derived from Stremio identity only, so the same title always gets the same Jellyfin id. */
-export function itemGuid(kind: ItemKind, stremioId: string, season?: number | null, episode?: number | null) {
+export function itemGuid(
+	kind: ItemKind,
+	stremioId: string,
+	season?: number | null,
+	episode?: number | null
+) {
 	return guid(`${kind}|${stremioId}|${season ?? ''}|${episode ?? ''}`);
 }
 
@@ -104,7 +110,10 @@ export class IdMap {
 		if (pending) return pending;
 		const known = memo.get<IdEntry>(`id:${id}`, MEMO_TTL);
 		if (known) return known.value;
-		const row = await this.#db.prepare('SELECT * FROM id_map WHERE guid = ?').bind(id).first<IdRow>();
+		const row = await this.#db
+			.prepare('SELECT * FROM id_map WHERE guid = ?')
+			.bind(id)
+			.first<IdRow>();
 		if (!row) return null;
 		const entry = fromRow(row);
 		memo.set(`id:${id}`, entry);

@@ -33,8 +33,13 @@ function withCors(response: Response): Response {
 	return result;
 }
 
-export async function handleJellyfin(request: Request, env: Env, exec: ExecutionContext): Promise<Response> {
-	if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
+export async function handleJellyfin(
+	request: Request,
+	env: Env,
+	exec: ExecutionContext
+): Promise<Response> {
+	if (request.method === 'OPTIONS')
+		return new Response(null, { status: 204, headers: CORS_HEADERS });
 
 	const url = new URL(request.url);
 	const match = router.match(request.method, normalizePath(url.pathname));
