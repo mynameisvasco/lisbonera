@@ -1,5 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
 import adapter from '@sveltejs/adapter-cloudflare';
 import { sveltekit } from '@sveltejs/kit/vite';
 
@@ -12,24 +12,10 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter({
-				config: 'wrangler.adapter.jsonc',
-				platformProxy: { configPath: 'wrangler.jsonc' }
-			})
+			adapter: adapter(),
+			// Native Jellyfin clients POST without an Origin header, which SvelteKit's built-in check rejects.
+			// '*' is the supported way to turn that check off; src/hooks.server.ts applies it to everything else.
+			csrf: { trustedOrigins: ['*'] }
 		})
-	],
-	test: {
-		expect: { requireAssertions: true },
-		projects: [
-			{
-				extends: './vite.config.ts',
-				test: {
-					name: 'server',
-					environment: 'node',
-					include: ['src/**/*.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
-				}
-			}
-		]
-	}
+	]
 });

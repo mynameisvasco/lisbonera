@@ -11,6 +11,8 @@ import { systemRoutes } from './handlers/system';
 import { userRoutes } from './handlers/users';
 import { normalizePath, Router } from './router';
 
+export { isJellyfinPath } from './router';
+
 const router = new Router();
 systemRoutes(router);
 userRoutes(router);
@@ -36,7 +38,7 @@ function withCors(response: Response): Response {
 export async function handleJellyfin(
 	request: Request,
 	env: Env,
-	exec: ExecutionContext
+	exec: Pick<ExecutionContext, 'waitUntil'>
 ): Promise<Response> {
 	if (request.method === 'OPTIONS')
 		return new Response(null, { status: 204, headers: CORS_HEADERS });

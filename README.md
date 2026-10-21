@@ -10,7 +10,7 @@ clients sign in with app passwords you create there.
 ## How it works
 
 ```
-Jellyfin client ──► Worker (src/worker.ts)
+Jellyfin client ──► Worker (SvelteKit, src/hooks.server.ts)
                      ├─ Jellyfin API ──► Stremio addons (catalog, meta, stream)
                      │                   └─ playback: 302 redirect to the stream URL
                      └─ /admin ────────► SvelteKit dashboard (Cloudflare Access)
@@ -134,16 +134,13 @@ types and style. `docs/clients.md` is the manual checklist for real clients.
 
 | Path                       | Purpose                                          |
 | -------------------------- | ------------------------------------------------ |
-| `src/worker.ts`            | Worker entry: Jellyfin API first, then SvelteKit |
+| `src/hooks.server.ts`      | Jellyfin API, dashboard CSRF guard, Access check |
 | `src/lib/server/jellyfin/` | Router, handlers, DTO mapping, playback          |
 | `src/lib/server/stremio/`  | Addon protocol client                            |
 | `src/lib/server/scrobble/` | Provider interface and Trakt                     |
 | `src/lib/server/auth/`     | App passwords, sessions, Access verification     |
 | `src/routes/admin/`        | Dashboard                                        |
 | `migrations/`              | D1 schema                                        |
-
-`wrangler.adapter.jsonc` only tells the SvelteKit adapter where to write its worker; `wrangler.jsonc` is the
-deployed configuration.
 
 ## Disclaimer
 

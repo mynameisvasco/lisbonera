@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { isCrossSiteFormSubmission } from '../src/lib/server/csrf';
 import { isJellyfinPath, normalizePath } from '../src/lib/server/jellyfin/router';
 import { authed, call, login, seed } from './helpers';
 
@@ -54,5 +55,34 @@ describe('native client requests', () => {
 	it('requires a token for private endpoints', async () => {
 		expect((await call('/Users/Me')).status).toBe(401);
 		expect((await call('/Sessions/Playing/Stopped', { method: 'POST' })).status).toBe(401);
+	});
+});
+
+describe('dashboard CSRF guard', () => {
+	const origin = 'https://media.test';
+	const post = (headers: Record<string, string>) =>
+		new Request(`${origin}/admin/addons?/add`, { method: 'POST', headers });
+
+	it('rejects cross-site and origin-less form posts', () => {
+		expect(
+			isCrossSiteFormSubmission(
+				post({ 'content-type': 'application/x-www-form-urlencoded', origin: 'https://evil.test' }),
+				origin
+			)
+		).toBe(true);
+		expect(
+			isCrossSiteFormSubmission(post({ 'content-type': 'multipart/form-data; boundary=x' }), origin)
+		).toBe(true);
+		expect(isCrossSiteFormSubmission(post({}), origin)).toBe(true);
+	});
+
+	it('allows same-origin forms, JSON bodies and safe methods', () => {
+		expect(
+			isCrossSiteFormSubmission(post({ 'content-type': 'multipart/form-data', origin }), origin)
+		).toBe(false);
+		expect(isCrossSiteFormSubmission(post({ 'content-type': 'application/json' }), origin)).toBe(
+			false
+		);
+		expect(isCrossSiteFormSubmission(new Request(`${origin}/admin`), origin)).toBe(false);
 	});
 });

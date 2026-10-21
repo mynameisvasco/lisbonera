@@ -32,13 +32,13 @@ Geist Mono via `@fontsource-variable`, superforms + formsnap + zod. Tests: Vites
 ## Architecture
 
 ```
-request ─► src/worker.ts
+request ─► src/hooks.server.ts (handle)
             ├─ Jellyfin API path ─► src/lib/server/jellyfin/router.ts ─► handlers
             └─ everything else   ─► SvelteKit generated worker (dashboard at /admin, assets)
 ```
 
-`src/worker.ts` is Wrangler's `main`. It wraps the adapter output so the Jellyfin API never hits SvelteKit's CSRF
-check and does not pay SvelteKit's routing cost. The dashboard keeps SvelteKit's CSRF protection.
+The `handle` hook answers Jellyfin API paths itself and passes everything else to SvelteKit. SvelteKit's CSRF
+check is disabled with `csrf.trustedOrigins: ['*']` and re-applied in the hook to all non-API requests.
 
 A path belongs to the Jellyfin API unless it starts with `/admin`, `/_app` or is a static asset. Matching is
 case-insensitive and an optional `/emby` or `/jellyfin` prefix is stripped. Query parameter names are read
@@ -190,8 +190,9 @@ Deploy-to-Cloudflare button plus `pnpm setup && pnpm deploy`. README documents A
 
 - App passwords are random (~119 bits) and stored as SHA-256, not PBKDF2: PBKDF2 at 100k iterations exceeds the
   free plan's 10 ms CPU budget, and a random secret does not need key stretching.
-- `wrangler.jsonc` points `main` at `src/worker.ts`; the SvelteKit adapter reads `wrangler.adapter.jsonc` so it
-  writes its worker to `.svelte-kit/cloudflare/_worker.js`, which `wrangler.jsonc` aliases as `sveltekit-worker`.
+- The Jellyfin API runs in SvelteKit's `handle` hook, which returns its response without resolving a route.
+  SvelteKit's built-in CSRF check is turned off with `csrf.trustedOrigins: ['*']` (the supported replacement for
+  `checkOrigin: false`) and the same rule is applied to all non-API requests in the hook.
 - Dashboard server code reads bindings from `cloudflare:workers` (adapter-cloudflare 8 no longer fills
   `platform` in dev).
 - Trakt client credentials are entered in the dashboard and stored encrypted in D1 instead of being secrets, so

@@ -1,6 +1,9 @@
-import { createWorker } from '../src/lib/server/app';
+import { handleJellyfin, isJellyfinPath } from '../src/lib/server/jellyfin/api';
 
-/** Stands in for the SvelteKit worker so tests can tell which side handled a request. */
-export default createWorker({
-	fetch: () => new Response('sveltekit')
-});
+/** Mirrors src/hooks.server.ts: Jellyfin paths go to the API, everything else to SvelteKit. */
+export default {
+	fetch(request, env, ctx) {
+		if (isJellyfinPath(new URL(request.url).pathname)) return handleJellyfin(request, env, ctx);
+		return new Response('sveltekit');
+	}
+} satisfies ExportedHandler<Env>;

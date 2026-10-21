@@ -1,12 +1,9 @@
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "lisbonera",
-	"main": "src/worker.ts",
+	"main": ".svelte-kit/cloudflare/_worker.js",
 	"compatibility_date": "2026-10-21",
 	"compatibility_flags": ["nodejs_als"],
-	"alias": {
-		"sveltekit-worker": "./.svelte-kit/cloudflare/_worker.js"
-	},
 	"assets": {
 		"binding": "ASSETS",
 		"directory": ".svelte-kit/cloudflare"
