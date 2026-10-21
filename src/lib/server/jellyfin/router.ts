@@ -41,14 +41,13 @@ export function normalizePath(pathname: string): string {
 function compile(path: string): { pattern: RegExp; keys: string[] } {
 	const keys: string[] = [];
 	const source = path
-		.toLowerCase()
 		.split(/(:[a-zA-Z]+)/)
 		.map((part) => {
 			if (part.startsWith(':')) {
 				keys.push(part.slice(1));
 				return '([^/]+?)';
 			}
-			return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			return part.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 		})
 		.join('');
 	return { pattern: new RegExp(`^${source}$`), keys };

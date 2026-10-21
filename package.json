@@ -8,7 +8,7 @@
 		"build": "wrangler types --strict-vars=false --check && vite build",
 		"preview": "wrangler dev --port 4173",
 		"prepare": "svelte-kit sync || echo ''",
-		"check": "wrangler types --strict-vars=false --check && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check": "wrangler types --strict-vars=false --check && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json && tsc -p test --noEmit",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier --write .",

@@ -1,0 +1,8 @@
+{
+	"extends": "$app/tsconfig",
+	"compilerOptions": {
+		"strict": true,
+		"types": ["@cloudflare/vitest-plugin/types", "../worker-configuration.d.ts"]
+	},
+	"include": ["./**/*.ts", "../src/lib/server/**/*.ts", "../src/sveltekit-worker.d.ts"]
+}
