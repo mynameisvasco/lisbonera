@@ -4,7 +4,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { addonSchema } from '#lib/schemas.js';
 import { AddonError, addAddon, refreshAddon } from '#lib/server/admin/addons.js';
-import { field, moved } from '#lib/server/admin/forms.js';
+import { field, orderedIds } from '#lib/server/admin/forms.js';
 import { adminScope } from '#lib/server/admin/scope.js';
 import { deleteAddon, listAddons, reorder, setAddonEnabled } from '#lib/server/store.js';
 import type { Actions, PageServerLoad } from './$types';
@@ -20,6 +20,8 @@ export const load: PageServerLoad = async () => {
 			name: addon.manifest?.name ?? new URL(addon.url).host,
 			version: addon.manifest?.version ?? null,
 			description: addon.manifest?.description ?? null,
+			logo: addon.manifest?.logo ?? null,
+			catalogs: addon.manifest?.catalogs.length ?? 0,
 			resources: (addon.manifest?.resources ?? []).map((resource) =>
 				typeof resource === 'string' ? resource : resource.name
 			),
@@ -46,11 +48,9 @@ export const actions: Actions = {
 		const data = await request.formData();
 		await setAddonEnabled(env.DB, field(data, 'id'), field(data, 'enabled') === 'true');
 	},
-	move: async ({ request }) => {
-		const data = await request.formData();
-		const db = env.DB;
-		const ids = (await listAddons(db)).map((addon) => addon.id);
-		await reorder(db, 'addons', moved(ids, field(data, 'id'), field(data, 'direction')));
+	reorder: async ({ request }) => {
+		const known = (await listAddons(env.DB)).map((addon) => addon.id);
+		await reorder(env.DB, 'addons', orderedIds(await request.formData(), known));
 	},
 	refresh: async (event) => {
 		const data = await event.request.formData();

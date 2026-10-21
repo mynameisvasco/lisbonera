@@ -3,7 +3,9 @@ import { fail, redirect } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { collectionSchema, renameSchema } from '#lib/schemas.js';
-import { field, moved } from '#lib/server/admin/forms.js';
+import { field, orderedIds } from '#lib/server/admin/forms.js';
+import { libraryPreviews } from '#lib/server/admin/previews.js';
+import { adminScope } from '#lib/server/admin/scope.js';
 import {
 	createCollection,
 	deleteLibrary,
@@ -15,9 +17,9 @@ import {
 } from '#lib/server/store.js';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	const db = env.DB;
-	const [libraries, addons] = await Promise.all([listLibraries(db), listAddons(db)]);
+export const load: PageServerLoad = async (event) => {
+	const [libraries, addons] = await Promise.all([listLibraries(env.DB), listAddons(env.DB)]);
+	const previews = await libraryPreviews(adminScope(event), libraries, 3);
 	const addonNames = new Map(
 		addons.map((addon) => [addon.id, addon.manifest?.name ?? new URL(addon.url).host])
 	);
@@ -33,7 +35,8 @@ export const load: PageServerLoad = async () => {
 				library.kind === 'collection'
 					? 'Collection'
 					: (addonNames.get(library.addonId ?? '') ?? 'Unknown'),
-			enabled: library.enabled
+			enabled: library.enabled,
+			posters: previews[library.id] ?? []
 		}))
 	};
 };
@@ -53,22 +56,16 @@ export const actions: Actions = {
 	},
 	toggle: async ({ request }) => {
 		const data = await request.formData();
-		await updateLibrary(env.DB, field(data, 'id'), {
-			enabled: field(data, 'enabled') === 'true'
-		});
+		await updateLibrary(env.DB, field(data, 'id'), { enabled: field(data, 'enabled') === 'true' });
 	},
-	move: async ({ request }) => {
-		const data = await request.formData();
-		const db = env.DB;
-		const ids = (await listLibraries(db)).map((library) => library.id);
-		await reorder(db, 'libraries', moved(ids, field(data, 'id'), field(data, 'direction')));
+	reorder: async ({ request }) => {
+		const known = (await listLibraries(env.DB)).map((library) => library.id);
+		await reorder(env.DB, 'libraries', orderedIds(await request.formData(), known));
 	},
 	remove: async ({ request }) => {
-		const data = await request.formData();
-		const db = env.DB;
-		const library = await getLibrary(db, field(data, 'id'));
+		const library = await getLibrary(env.DB, field(await request.formData(), 'id'));
 		if (library?.kind !== 'collection')
-			return fail(400, { error: 'Catalog libraries can only be disabled' });
-		await deleteLibrary(db, library.id);
+			return fail(400, { error: 'Catalog libraries can only be hidden' });
+		await deleteLibrary(env.DB, library.id);
 	}
 };

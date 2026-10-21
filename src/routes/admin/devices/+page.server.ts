@@ -13,19 +13,23 @@ import {
 } from '#lib/server/auth/client.js';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	const db = env.DB;
-	const [passwords, sessions] = await Promise.all([listAppPasswords(db), listSessions(db)]);
+export const load: PageServerLoad = async ({ url }) => {
+	const [passwords, sessions] = await Promise.all([listAppPasswords(env.DB), listSessions(env.DB)]);
 	return {
-		form: await superValidate(zod4(appPasswordSchema)),
-		passwords,
-		sessions: sessions.map((session) => ({
-			tokenHash: session.tokenHash,
-			label: session.label,
-			client: session.client,
-			device: session.device,
-			version: session.version,
-			lastSeenAt: session.lastSeenAt
+		server: url.origin,
+		username: env.JELLYFIN_USERNAME || 'admin',
+		form: await superValidate({ label: 'Infuse' }, zod4(appPasswordSchema), { errors: false }),
+		devices: passwords.map((password) => ({
+			...password,
+			sessions: sessions
+				.filter((session) => session.appPasswordId === password.id)
+				.map((session) => ({
+					tokenHash: session.tokenHash,
+					client: session.client,
+					device: session.device,
+					version: session.version,
+					lastSeenAt: session.lastSeenAt
+				}))
 		}))
 	};
 };

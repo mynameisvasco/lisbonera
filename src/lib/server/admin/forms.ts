@@ -6,12 +6,16 @@ export function field(data: FormData, name: string): string {
 	return value;
 }
 
-/** Returns `ids` with `id` swapped with its neighbour in `direction`. */
-export function moved(ids: string[], id: string, direction: string): string[] {
-	const index = ids.indexOf(id);
-	const target = direction === 'up' ? index - 1 : index + 1;
-	if (index < 0 || target < 0 || target >= ids.length) return ids;
-	const next = [...ids];
-	[next[index], next[target]] = [next[target], next[index]];
-	return next;
+/** Reads a JSON array of ids and keeps only known ones, in the submitted order. */
+export function orderedIds(data: FormData, known: string[]): string[] {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(field(data, 'ids'));
+	} catch {
+		error(400, 'Invalid order');
+	}
+	if (!Array.isArray(parsed)) error(400, 'Invalid order');
+	const allowed = new Set(known);
+	const ids = parsed.filter((id): id is string => typeof id === 'string' && allowed.has(id));
+	return [...new Set(ids), ...known.filter((id) => !ids.includes(id))];
 }

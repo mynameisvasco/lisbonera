@@ -1,3 +1,5 @@
+<p><img src="static/icon.svg" width="64" height="64" alt=""></p>
+
 # Lisbonera
 
 A personal Jellyfin server that runs on the Cloudflare Workers free plan. Its catalogs, metadata and streams come

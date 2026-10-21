@@ -1,6 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { error, fail } from '@sveltejs/kit';
-import { field, moved } from '#lib/server/admin/forms.js';
+import { field, orderedIds } from '#lib/server/admin/forms.js';
 import { adminScope } from '#lib/server/admin/scope.js';
 import { search, type MediaType } from '#lib/server/jellyfin/media.js';
 import {
@@ -71,15 +71,9 @@ export const actions: Actions = {
 		const library = await collection(db, params.id);
 		await removeCollectionItem(db, library.id, field(await request.formData(), 'stremioId'));
 	},
-	move: async ({ request, params }) => {
-		const db = env.DB;
-		const library = await collection(db, params.id);
-		const data = await request.formData();
-		const ids = (await listCollectionItems(db, library.id)).map((item) => item.stremioId);
-		await reorderCollection(
-			db,
-			library.id,
-			moved(ids, field(data, 'stremioId'), field(data, 'direction'))
-		);
+	reorder: async ({ request, params }) => {
+		const library = await collection(env.DB, params.id);
+		const known = (await listCollectionItems(env.DB, library.id)).map((item) => item.stremioId);
+		await reorderCollection(env.DB, library.id, orderedIds(await request.formData(), known));
 	}
 };

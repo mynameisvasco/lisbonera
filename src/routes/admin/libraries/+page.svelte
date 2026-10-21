@@ -1,26 +1,28 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { enhance } from '$app/forms';
-	import { resolve } from '$app/paths';
+	import { DragDropProvider } from '@dnd-kit/svelte';
+	import { reorderAfterDrag } from '#lib/sortable.js';
 	import { superForm } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import PageHeader from '#lib/components/page-header.svelte';
-	import RowActions from '#lib/components/row-actions.svelte';
-	import ToggleForm from '#lib/components/toggle-form.svelte';
+	import ReorderForm from '#lib/components/reorder-form.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Dialog from '#lib/components/ui/dialog/index.js';
 	import * as Form from '#lib/components/ui/form/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
-	import * as Select from '#lib/components/ui/select/index.js';
-	import * as Table from '#lib/components/ui/table/index.js';
-	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
-	import TrashIcon from 'phosphor-svelte/lib/Trash';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.js';
+	import FilmSlateIcon from 'phosphor-svelte/lib/FilmSlate';
+	import TelevisionSimpleIcon from 'phosphor-svelte/lib/TelevisionSimple';
+	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
+	import PlusIcon from 'phosphor-svelte/lib/Plus';
 	import { collectionSchema, renameSchema } from '#lib/schemas.js';
+	import LibraryCard from './library-card.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
-	const typeLabels = { movie: 'Movies', series: 'Series', mixed: 'Mixed' } as const;
+	let libraries = $derived(data.libraries);
+	let reorderForm = $state<ReorderForm>();
 
 	let createOpen = $state(false);
 	let renameOpen = $state(false);
@@ -47,130 +49,93 @@
 		$renameData = { id: library.id, name: library.name };
 		renameOpen = true;
 	}
+
+	const types = [
+		{ value: 'movie', label: 'Movies', icon: FilmSlateIcon },
+		{ value: 'series', label: 'Series', icon: TelevisionSimpleIcon },
+		{ value: 'mixed', label: 'Mixed', icon: SquaresFourIcon }
+	] as const;
 </script>
 
 <svelte:head><title>Libraries · Lisbonera</title></svelte:head>
 
 <PageHeader
 	title="Libraries"
-	description="Each enabled library appears in Jellyfin clients, in this order."
+	description="Drag to set the order Jellyfin apps show them in. Hidden libraries stay here until you turn them back on."
 >
 	{#snippet actions()}
-		<Button variant="outline" onclick={() => (createOpen = true)}>New collection</Button>
+		<Button onclick={() => (createOpen = true)}><PlusIcon /> New collection</Button>
 	{/snippet}
 </PageHeader>
 
-<Table.Root>
-	<Table.Header>
-		<Table.Row>
-			<Table.Head>Library</Table.Head>
-			<Table.Head>Type</Table.Head>
-			<Table.Head class="w-16">On</Table.Head>
-			<Table.Head class="w-40 text-right"><span class="sr-only">Actions</span></Table.Head>
-		</Table.Row>
-	</Table.Header>
-	<Table.Body>
-		{#each data.libraries as library, index (library.id)}
-			<Table.Row>
-				<Table.Cell>
-					{#if library.kind === 'collection'}
-						<a
-							class="font-medium underline-offset-4 hover:underline"
-							href={resolve('/admin/libraries/[id]', { id: library.id })}
-						>
-							{library.name}
-						</a>
-					{:else}
-						<span class="font-medium">{library.name}</span>
-					{/if}
-					<div class="text-xs text-muted-foreground">{library.source}</div>
-				</Table.Cell>
-				<Table.Cell class="text-muted-foreground">{typeLabels[library.type]}</Table.Cell>
-				<Table.Cell>
-					<ToggleForm
-						action="?/toggle"
-						id={library.id}
-						checked={library.enabled}
-						label="Show {library.name}"
-					/>
-				</Table.Cell>
-				<Table.Cell>
-					<div class="flex justify-end">
-						<RowActions
-							id={library.id}
-							first={index === 0}
-							last={index === data.libraries.length - 1}
-						/>
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label="Rename"
-							onclick={() => startRename(library)}
-						>
-							<PencilSimpleIcon />
-						</Button>
-						{#if library.kind === 'collection'}
-							<form
-								method="POST"
-								action="?/remove"
-								use:enhance={({ cancel }) => {
-									if (!confirm(`Delete the collection ${library.name}?`)) cancel();
-								}}
-							>
-								<input type="hidden" name="id" value={library.id} />
-								<Button type="submit" variant="ghost" size="icon-sm" aria-label="Delete collection"
-									><TrashIcon /></Button
-								>
-							</form>
-						{/if}
-					</div>
-				</Table.Cell>
-			</Table.Row>
-		{:else}
-			<Table.Row>
-				<Table.Cell colspan={4} class="py-8 text-center text-muted-foreground">
-					No libraries. Add an addon with catalogs or create a collection.
-				</Table.Cell>
-			</Table.Row>
+<DragDropProvider
+	onDragEnd={(event) => {
+		const next = reorderAfterDrag(libraries, event);
+		if (!next) return;
+		libraries = next;
+		reorderForm?.submit(libraries.map((library) => library.id));
+	}}
+>
+	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+		{#each libraries as library, index (library.id)}
+			<LibraryCard {library} {index} onRename={startRename} />
 		{/each}
-	</Table.Body>
-</Table.Root>
+		<button
+			type="button"
+			onclick={() => (createOpen = true)}
+			class="flex min-h-60 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+		>
+			<span class="flex size-10 items-center justify-center rounded-full bg-muted">
+				<PlusIcon class="size-5" />
+			</span>
+			Collection of your own picks
+		</button>
+	</div>
+</DragDropProvider>
+
+<ReorderForm bind:this={reorderForm} />
 
 <Dialog.Root bind:open={createOpen}>
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>New collection</Dialog.Title>
-			<Dialog.Description>A library with titles you pick yourself.</Dialog.Description>
+			<Dialog.Description
+				>Pick titles from your addons and show them as one library.</Dialog.Description
+			>
 		</Dialog.Header>
-		<form method="POST" action="?/create" use:createEnhance class="space-y-4">
+		<form method="POST" action="?/create" use:createEnhance class="space-y-5">
 			<Form.Field form={create} name="name">
 				<Form.Control>
 					{#snippet children({ props })}
 						<Form.Label>Name</Form.Label>
-						<Input {...props} bind:value={$createData.name} />
+						<Input {...props} bind:value={$createData.name} placeholder="Weekend picks" />
 					{/snippet}
 				</Form.Control>
 				<Form.FieldErrors />
 			</Form.Field>
-			<Form.Field form={create} name="type">
-				<Form.Control>
-					{#snippet children({ props })}
-						<Form.Label>Type</Form.Label>
-						<Select.Root type="single" bind:value={$createData.type} name={props.name}>
-							<Select.Trigger {...props} class="w-full"
-								>{typeLabels[$createData.type]}</Select.Trigger
-							>
-							<Select.Content>
-								<Select.Item value="movie" label="Movies" />
-								<Select.Item value="series" label="Series" />
-								<Select.Item value="mixed" label="Mixed" />
-							</Select.Content>
-						</Select.Root>
-					{/snippet}
-				</Form.Control>
-			</Form.Field>
+			<Form.Fieldset form={create} name="type">
+				<Form.Legend class="mb-2 text-sm font-medium">Contains</Form.Legend>
+				<input type="hidden" name="type" value={$createData.type} />
+				<ToggleGroup.Root
+					type="single"
+					variant="outline"
+					class="w-full"
+					value={$createData.type}
+					onValueChange={(value) => value && ($createData.type = value as typeof $createData.type)}
+				>
+					{#each types as type (type.value)}
+						<ToggleGroup.Item
+							value={type.value}
+							class="flex-1 gap-1.5 data-[state=on]:bg-primary/15 data-[state=on]:text-primary"
+						>
+							<type.icon />
+							{type.label}
+						</ToggleGroup.Item>
+					{/each}
+				</ToggleGroup.Root>
+			</Form.Fieldset>
 			<Dialog.Footer>
-				<Form.Button disabled={$creating}>Create</Form.Button>
+				<Form.Button disabled={$creating}>Create and add titles</Form.Button>
 			</Dialog.Footer>
 		</form>
 	</Dialog.Content>
@@ -180,8 +145,11 @@
 	<Dialog.Content class="sm:max-w-md">
 		<Dialog.Header>
 			<Dialog.Title>Rename library</Dialog.Title>
+			<Dialog.Description
+				>Jellyfin apps pick up the new name on their next refresh.</Dialog.Description
+			>
 		</Dialog.Header>
-		<form method="POST" action="?/rename" use:renameEnhance class="space-y-4">
+		<form method="POST" action="?/rename" use:renameEnhance class="space-y-5">
 			<input type="hidden" name="id" value={$renameData.id} />
 			<Form.Field form={rename} name="name">
 				<Form.Control>

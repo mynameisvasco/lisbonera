@@ -17,5 +17,7 @@ export default defineConfig({
 			// '*' is the supported way to turn that check off; src/hooks.server.ts applies it to everything else.
 			csrf: { trustedOrigins: ['*'] }
 		})
-	]
+	],
+	// Ships .svelte files without a `svelte` export condition, so SSR must bundle it.
+	ssr: { noExternal: ['@dnd-kit/svelte'] }
 });

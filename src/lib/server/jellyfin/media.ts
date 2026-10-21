@@ -206,7 +206,7 @@ export function sorter(sort: SortSpec): ((a: Listed, b: Listed) => number) | nul
 }
 
 async function libraryFetcher(
-	c: JfContext,
+	c: Scope,
 	library: Library
 ): Promise<(skip: number) => Promise<Listed[]>> {
 	if (library.kind === 'collection') {
@@ -234,7 +234,7 @@ async function libraryFetcher(
 }
 
 export async function libraryPage(
-	c: JfContext,
+	c: Scope,
 	library: Library,
 	start: number,
 	limit: number,
