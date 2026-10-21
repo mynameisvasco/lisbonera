@@ -145,7 +145,9 @@ export async function login(): Promise<string> {
 		method: 'POST',
 		headers: {
 			'content-type': 'application/json',
-			authorization: 'MediaBrowser Client="Tests", Device="Vitest", DeviceId="1", Version="1.0"'
+			authorization: 'MediaBrowser Client="Tests", Device="Vitest", DeviceId="1", Version="1.0"',
+			// Each login comes from its own address so the login rate limit does not trip across tests.
+			'cf-connecting-ip': `10.0.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`
 		},
 		body: JSON.stringify({ Username: 'admin', Pw: password })
 	});

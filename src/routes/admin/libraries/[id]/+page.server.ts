@@ -1,14 +1,16 @@
 import { env } from 'cloudflare:workers';
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import { field, orderedIds } from '#lib/server/admin/forms.js';
 import { adminScope } from '#lib/server/admin/scope.js';
 import { search, type MediaType } from '#lib/server/jellyfin/media.js';
 import {
 	addCollectionItem,
+	deleteLibrary,
 	getLibrary,
 	listCollectionItems,
 	removeCollectionItem,
-	reorderCollection
+	reorderCollection,
+	updateLibrary
 } from '#lib/server/store.js';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -29,7 +31,7 @@ export const load: PageServerLoad = async (event) => {
 	const query = event.url.searchParams.get('q')?.trim() ?? '';
 	const inCollection = new Set(items.map((item) => item.stremioId));
 	const results = query
-		? (await search(adminScope(event), query, allowedTypes(library.catalogType), 30)).map(
+		? (await search(adminScope(event), query, allowedTypes(library.catalogType), 24)).map(
 				({ meta, type }) => ({
 					id: meta.id,
 					type,
@@ -75,5 +77,18 @@ export const actions: Actions = {
 		const library = await collection(env.DB, params.id);
 		const known = (await listCollectionItems(env.DB, library.id)).map((item) => item.stremioId);
 		await reorderCollection(env.DB, library.id, orderedIds(await request.formData(), known));
+	},
+	rename: async ({ request, params }) => {
+		const library = await collection(env.DB, params.id);
+		const name = field(await request.formData(), 'name')
+			.trim()
+			.slice(0, 80);
+		if (!name) return fail(400, { error: 'Enter a name' });
+		await updateLibrary(env.DB, library.id, { name });
+	},
+	delete: async ({ params }) => {
+		const library = await collection(env.DB, params.id);
+		await deleteLibrary(env.DB, library.id);
+		redirect(303, '/admin/libraries');
 	}
 };

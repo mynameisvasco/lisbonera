@@ -2,6 +2,7 @@
 	"extends": "$app/tsconfig",
 	"compilerOptions": {
 		"strict": true,
+		"checkJs": false,
 		"types": ["@cloudflare/vitest-plugin/types", "../worker-configuration.d.ts"]
 	},
 	"include": ["./**/*.ts", "../src/lib/server/**/*.ts"]

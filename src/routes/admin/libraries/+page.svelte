@@ -16,7 +16,8 @@
 	import SquaresFourIcon from 'phosphor-svelte/lib/SquaresFour';
 	import PlusIcon from 'phosphor-svelte/lib/Plus';
 	import { collectionSchema, renameSchema } from '#lib/schemas.js';
-	import LibraryCard from './library-card.svelte';
+	import LibraryRow from './library-row.svelte';
+	import { shift } from '#lib/reorder.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -45,6 +46,12 @@
 	);
 	const { form: renameData, enhance: renameEnhance, submitting: renaming } = rename;
 
+	function save(next: typeof libraries) {
+		if (next === libraries) return;
+		libraries = next;
+		reorderForm?.submit(next.map((library) => library.id));
+	}
+
 	function startRename(library: { id: string; name: string }) {
 		$renameData = { id: library.id, name: library.name };
 		renameOpen = true;
@@ -59,39 +66,37 @@
 
 <svelte:head><title>Libraries · Lisbonera</title></svelte:head>
 
-<PageHeader
-	title="Libraries"
-	description="Drag to set the order Jellyfin apps show them in. Hidden libraries stay here until you turn them back on."
->
+<PageHeader title="Libraries" meta="Shown in this order in Jellyfin apps.">
 	{#snippet actions()}
-		<Button onclick={() => (createOpen = true)}><PlusIcon /> New collection</Button>
+		<Button variant="outline" onclick={() => (createOpen = true)}
+			><PlusIcon /> New collection</Button
+		>
 	{/snippet}
 </PageHeader>
 
 <DragDropProvider
 	onDragEnd={(event) => {
 		const next = reorderAfterDrag(libraries, event);
-		if (!next) return;
-		libraries = next;
-		reorderForm?.submit(libraries.map((library) => library.id));
+		if (next) save(next);
 	}}
 >
-	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+	<ol class="divide-y border-y">
 		{#each libraries as library, index (library.id)}
-			<LibraryCard {library} {index} onRename={startRename} />
+			<LibraryRow
+				{library}
+				{index}
+				count={libraries.length}
+				onRename={startRename}
+				onMove={(delta) => save(shift(libraries, index, delta))}
+			/>
 		{/each}
-		<button
-			type="button"
-			onclick={() => (createOpen = true)}
-			class="flex min-h-60 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
-		>
-			<span class="flex size-10 items-center justify-center rounded-full bg-muted">
-				<PlusIcon class="size-5" />
-			</span>
-			Collection of your own picks
-		</button>
-	</div>
+	</ol>
 </DragDropProvider>
+{#if libraries.length === 0}
+	<p class="py-6 text-sm text-muted-foreground">
+		No libraries. Install an addon with catalogs or create a collection.
+	</p>
+{/if}
 
 <ReorderForm bind:this={reorderForm} />
 

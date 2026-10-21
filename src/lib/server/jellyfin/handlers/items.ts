@@ -22,6 +22,12 @@ import type { Router } from '../router';
 import { resolveSources } from '../streams';
 
 const DEFAULT_LIMIT = 100;
+/** Resume and Next Up resolve each entry's full metadata, so they stay short to fit the CPU budget. */
+const SHELF_LIMIT = 12;
+
+function shelfLimit(c: JfContext): number {
+	return Math.min(c.query.int('Limit', SHELF_LIMIT) || SHELF_LIMIT, SHELF_LIMIT);
+}
 
 function result(items: BaseItemDto[], total = items.length, start = 0): Response {
 	return json({ Items: items, TotalRecordCount: total, StartIndex: start });
@@ -63,8 +69,10 @@ async function childrenOf(c: JfContext, parentId: string, types: TypeFilter): Pr
 		if (types.unsupported) return emptyResult();
 		const page = await libraryPage(c, library, start, limit, {
 			sort: sortSpec(c),
-			types: types.media
-		});
+			types: types.media,
+			nameStartsWith: c.query.get('NameStartsWith')
+		}).catch(() => null);
+		if (!page) return emptyResult();
 		return result(await listItems(c, page.items), page.total, start);
 	}
 
@@ -101,24 +109,30 @@ async function queryItems(c: JfContext): Promise<Response> {
 	const limit = c.query.int('Limit', DEFAULT_LIMIT);
 	const types = typeFilter(c);
 
-	const ids = c.query.list('Ids');
+	const ids = c.query
+		.list('Ids')
+		.map((id) => id.toLowerCase().replace(/-/g, ''))
+		.slice(0, SHELF_LIMIT);
 	if (ids.length > 0) {
-		const items = await Promise.all(ids.map((id) => lookup(c, id.toLowerCase().replace(/-/g, ''))));
+		await c.ids.preload(ids);
+		const items = await Promise.all(ids.map((id) => lookup(c, id)));
 		return result(items.filter((item): item is BaseItemDto => item !== null));
 	}
 
-	if (c.query.list('Filters').some((filter) => filter.toLowerCase() === 'isresumable')) {
-		return result(await resumeItems(c, limit || 12, types.media));
-	}
+	const filters = c.query.list('Filters').map((filter) => filter.toLowerCase());
+	// Favorites are not supported; returning everything would fill favorite rows with whole libraries.
+	if (filters.includes('isfavorite') || c.query.bool('IsFavorite')) return emptyResult();
+	if (filters.includes('isresumable'))
+		return result(await resumeItems(c, shelfLimit(c), types.media));
 
-	const term = c.query.get('SearchTerm') ?? c.query.get('NameStartsWith');
+	const parentId = c.query.get('ParentId');
+	const term = c.query.get('SearchTerm') ?? (parentId ? undefined : c.query.get('NameStartsWith'));
 	if (term) {
 		if (types.unsupported) return emptyResult();
 		const found = await search(c, term, types.media, limit || 50);
 		return result(await listItems(c, found));
 	}
 
-	const parentId = c.query.get('ParentId');
 	if (parentId) return childrenOf(c, parentId.toLowerCase().replace(/-/g, ''), types);
 
 	if (types.media.length > 0 || c.query.bool('Recursive')) {
@@ -161,10 +175,12 @@ async function latest(c: JfContext): Promise<Response> {
 	if (types.unsupported) return json([]);
 	const parentId = c.query.get('ParentId')?.toLowerCase().replace(/-/g, '');
 	const library = parentId ? await getLibrary(c.env.DB, parentId) : null;
-	const page = library
-		? await libraryPage(c, library, 0, limit, { types: types.media })
-		: await allLibrariesPage(c, types.media, 0, limit);
-	return json(await listItems(c, page.items));
+	const page = await (
+		library
+			? libraryPage(c, library, 0, limit, { types: types.media })
+			: allLibrariesPage(c, types.media, 0, limit)
+	).catch(() => null);
+	return json(page ? await listItems(c, page.items) : []);
 }
 
 async function seasons(c: JfContext): Promise<Response> {
@@ -203,7 +219,7 @@ async function episodes(c: JfContext): Promise<Response> {
 }
 
 async function nextUp(c: JfContext): Promise<Response> {
-	const limit = c.query.int('Limit', 12) || 12;
+	const limit = shelfLimit(c);
 	const seriesId = c.query.get('SeriesId')?.toLowerCase().replace(/-/g, '');
 	const series = seriesId ? await c.ids.resolve(seriesId) : null;
 	if (seriesId && series?.kind !== 'series') return emptyResult();
@@ -233,11 +249,11 @@ async function searchHints(c: JfContext): Promise<Response> {
 	return json({ SearchHints: hints, TotalRecordCount: hints.length });
 }
 
-async function counts(c: JfContext): Promise<Response> {
-	const libraries = await enabledLibraries(c.env.DB);
+/** Title counts are unknown without walking every catalog, so they are reported as zero. */
+function counts(): Response {
 	return json({
-		MovieCount: libraries.filter((library) => library.catalogType === 'movie').length,
-		SeriesCount: libraries.filter((library) => library.catalogType === 'series').length,
+		MovieCount: 0,
+		SeriesCount: 0,
 		EpisodeCount: 0,
 		ArtistCount: 0,
 		ProgramCount: 0,
@@ -247,7 +263,7 @@ async function counts(c: JfContext): Promise<Response> {
 		MusicVideoCount: 0,
 		BoxSetCount: 0,
 		BookCount: 0,
-		ItemCount: libraries.length
+		ItemCount: 0
 	});
 }
 
@@ -274,7 +290,7 @@ export function itemRoutes(router: Router): void {
 	router.on(
 		'GET',
 		['/items/resume', '/users/:userId/items/resume', '/useritems/resume'],
-		async (c) => result(await resumeItems(c, c.query.int('Limit', 12) || 12, typeFilter(c).media))
+		async (c) => result(await resumeItems(c, shelfLimit(c), typeFilter(c).media))
 	);
 	router.on('GET', '/items/counts', counts);
 	router.on('GET', ['/items/filters', '/items/filters2'], () =>

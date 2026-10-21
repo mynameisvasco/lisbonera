@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { env } from 'cloudflare:workers';
+import { http, HttpResponse } from 'msw';
+import { addCollectionItem, createCollection, invalidateConfig } from '../src/lib/server/store';
 import {
+	ADDON_URL,
+	authed,
+	call,
 	getJson,
 	LIBRARY_ID,
 	login,
 	mockAddon,
 	seed,
-	SHOWS_LIBRARY_ID,
-	call,
-	authed
+	SHOWS_LIBRARY_ID
 } from './helpers';
+import { network } from './network';
 
 interface Item {
 	Id: string;
@@ -75,9 +80,9 @@ describe('libraries', () => {
 		expect(movie.UserData?.Played).toBe(false);
 	});
 
-	it('sorts when asked', async () => {
+	it('sorts by explicit keys only', async () => {
 		const result = await getJson<Result>(
-			`/Items?ParentId=${LIBRARY_ID}&SortBy=SortName&SortOrder=Descending&Limit=10`,
+			`/Items?ParentId=${LIBRARY_ID}&SortBy=ProductionYear&SortOrder=Descending&Limit=10`,
 			token
 		);
 		expect(result.Items.map((item) => item.Name)).toEqual(['Charlie', 'Bravo', 'Alpha']);
@@ -181,5 +186,64 @@ describe('images', () => {
 		expect(response.headers.get('cache-control')).toContain('immutable');
 		expect(await response.text()).toBe('jpeg');
 		expect((await call(`/Items/${Items[0].Id}/Images/Logo`, authed(token))).status).toBe(404);
+	});
+});
+
+describe('client defaults and failures', () => {
+	it('keeps the source order under the SortName default clients send', async () => {
+		const result = await getJson<Result>(
+			`/Items?ParentId=${LIBRARY_ID}&SortBy=SortName&SortOrder=Ascending`,
+			token
+		);
+		expect(result.Items.map((item) => item.Name)).toEqual(['Alpha', 'Bravo', 'Charlie']);
+	});
+
+	it('keeps the order set for a collection', async () => {
+		const id = await createCollection(env.DB, 'Picks', 'movie');
+		for (const [stremioId, name] of [
+			['tt0000003', 'Charlie'],
+			['tt0000001', 'Alpha']
+		]) {
+			await addCollectionItem(env.DB, {
+				libraryId: id,
+				stremioType: 'movie',
+				stremioId,
+				name,
+				poster: null
+			});
+		}
+		invalidateConfig();
+		const result = await getJson<Result>(
+			`/Items?ParentId=${id}&SortBy=SortName,ProductionYear`,
+			token
+		);
+		expect(result.Items.map((item) => item.Name)).toEqual(['Charlie', 'Alpha']);
+	});
+
+	it('filters a library by NameStartsWith instead of searching', async () => {
+		const result = await getJson<Result>(`/Items?ParentId=${LIBRARY_ID}&NameStartsWith=b`, token);
+		expect(result.Items.map((item) => item.Name)).toEqual(['Bravo']);
+	});
+
+	it('returns nothing for favorites', async () => {
+		const result = await getJson<Result>(
+			'/Items?Filters=IsFavorite&Recursive=true&IncludeItemTypes=Movie',
+			token
+		);
+		expect(result.Items).toEqual([]);
+	});
+
+	it('serves other libraries when one catalog fails', async () => {
+		network.use(
+			http.get(`${ADDON_URL}/catalog/movie/top.json`, () => HttpResponse.json({}, { status: 503 }))
+		);
+		const failing = await call(`/Items?ParentId=${LIBRARY_ID}`, authed(token));
+		expect(failing.status).toBe(200);
+		expect(((await failing.json()) as Result).Items).toEqual([]);
+
+		const all = await getJson<Result>('/Items?Recursive=true&IncludeItemTypes=Movie,Series', token);
+		expect(all.Items.map((item) => item.Name)).toEqual(['Delta']);
+		const latest = await getJson<Item[]>('/Items/Latest', token);
+		expect(latest.map((item) => item.Name)).toEqual(['Delta']);
 	});
 });

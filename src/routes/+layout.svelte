@@ -10,7 +10,8 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} type="image/svg+xml" />
-	<meta name="theme-color" content="#1d4ed8" />
+	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0d12" />
+	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#fcfcfa" />
 </svelte:head>
 
 <ModeWatcher defaultMode="dark" />

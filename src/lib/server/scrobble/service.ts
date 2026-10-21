@@ -173,7 +173,19 @@ export interface ActiveScrobbler {
 	provider: ScrobbleProvider;
 }
 
-export async function activeScrobbler(scope: Scope): Promise<ActiveScrobbler | null> {
+const scrobblers = new WeakMap<Scope, Promise<ActiveScrobbler | null>>();
+
+/** One provider instance per request, so parallel reads share token state and refreshes. */
+export function activeScrobbler(scope: Scope): Promise<ActiveScrobbler | null> {
+	let scrobbler = scrobblers.get(scope);
+	if (!scrobbler) {
+		scrobbler = createScrobbler(scope);
+		scrobblers.set(scope, scrobbler);
+	}
+	return scrobbler;
+}
+
+async function createScrobbler(scope: Scope): Promise<ActiveScrobbler | null> {
 	const account = await loadActive(scope.env);
 	if (!account) return null;
 	const fetcher: typeof fetch = (input, init) => {

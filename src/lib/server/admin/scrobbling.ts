@@ -48,7 +48,7 @@ export async function startConnection(env: Env, provider: string): Promise<Pendi
 export async function pollConnection(
 	env: Env,
 	provider: string
-): Promise<'connected' | 'pending' | 'failed'> {
+): Promise<'connected' | 'pending' | 'slow_down' | 'failed'> {
 	const definition = getProviderDefinition(provider);
 	const credentials = await loadCredentials(env, provider);
 	const device = await pendingDevice(env.DB, provider);
@@ -60,7 +60,7 @@ export async function pollConnection(
 		await clearDevice(env.DB, provider);
 		return 'connected';
 	}
-	if (result.status === 'pending' || result.status === 'slow_down') return 'pending';
+	if (result.status === 'pending' || result.status === 'slow_down') return result.status;
 	await clearDevice(env.DB, provider);
 	return 'failed';
 }

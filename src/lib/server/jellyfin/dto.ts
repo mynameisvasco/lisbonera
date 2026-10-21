@@ -320,15 +320,17 @@ export function mediaSource(
 	runtime: number | null
 ): MediaSourceInfo {
 	const container = source.filename?.split('.').pop()?.toLowerCase();
+	// `File` + not remote makes every client request /Videos/{id}/stream, which redirects to the source.
+	// With `Http`, some players try to open `Path` directly, and `Path` is only a display name here.
 	return {
-		Protocol: 'Http',
+		Protocol: 'File',
 		Id: source.id,
 		Path: path,
 		Type: 'Default',
 		Container: container && container.length <= 4 ? container : 'mkv',
 		Size: source.size ?? null,
 		Name: source.name,
-		IsRemote: true,
+		IsRemote: false,
 		ETag: source.id,
 		RunTimeTicks: runtime,
 		ReadAtNativeFramerate: false,

@@ -170,3 +170,32 @@ describe('scrobbling', () => {
 		expect(row?.last_error).toContain('503');
 	});
 });
+
+describe('token refresh', () => {
+	it('refreshes once for parallel reads', async () => {
+		let refreshes = 0;
+		await saveAccount(
+			env,
+			'trakt',
+			{ accessToken: 'old', refreshToken: 'refresh', expiresAt: Date.now() + 60_000 },
+			'owner'
+		);
+		network.use(
+			http.post('https://api.trakt.tv/oauth/token', async () => {
+				refreshes++;
+				return HttpResponse.json({
+					access_token: 'new',
+					refresh_token: 'next',
+					created_at: Date.now() / 1000,
+					expires_in: 86400
+				});
+			})
+		);
+		const items = await getJson<{ Items: { Id: string }[] }>(
+			`/Items?ParentId=${LIBRARY_ID}`,
+			token
+		);
+		expect((await call(`/Items/${items.Items[0].Id}`, authed(token))).status).toBe(200);
+		expect(refreshes).toBe(1);
+	});
+});

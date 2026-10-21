@@ -18,8 +18,10 @@ import {
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
+	// The layout loads seeded addon manifests; wait for it so their libraries exist on the first visit.
+	await event.parent();
 	const [libraries, addons] = await Promise.all([listLibraries(env.DB), listAddons(env.DB)]);
-	const previews = await libraryPreviews(adminScope(event), libraries, 3);
+	const previews = await libraryPreviews(adminScope(event), libraries, 5);
 	const addonNames = new Map(
 		addons.map((addon) => [addon.id, addon.manifest?.name ?? new URL(addon.url).host])
 	);

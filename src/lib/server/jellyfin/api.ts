@@ -1,5 +1,6 @@
 import { authenticate, extractToken, touchSession } from '../auth/client';
 import { json, Query, unauthorized } from '../http';
+import { loadPendingManifests } from '../admin/addons';
 import { IdMap } from '../ids';
 import { createScope } from '../scope';
 import { dtoContext, type JfContext } from './context';
@@ -68,6 +69,8 @@ export async function handleJellyfin(
 	};
 
 	try {
+		// Addons seeded by the migration have no manifest until first loaded; load them before serving content.
+		if (session) await loadPendingManifests(c);
 		const response = await match.handler(c);
 		await c.ids.flush();
 		if (session) exec.waitUntil(touchSession(env.DB, session).catch(() => undefined));

@@ -6,11 +6,17 @@ import { addonSchema } from '#lib/schemas.js';
 import { AddonError, addAddon, refreshAddon } from '#lib/server/admin/addons.js';
 import { field, orderedIds } from '#lib/server/admin/forms.js';
 import { adminScope } from '#lib/server/admin/scope.js';
-import { deleteAddon, listAddons, reorder, setAddonEnabled } from '#lib/server/store.js';
+import {
+	deleteAddon,
+	listAddons,
+	listLibraries,
+	reorder,
+	setAddonEnabled
+} from '#lib/server/store.js';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	const addons = await listAddons(env.DB);
+	const [addons, libraries] = await Promise.all([listAddons(env.DB), listLibraries(env.DB)]);
 	return {
 		form: await superValidate(zod4(addonSchema)),
 		addons: addons.map((addon) => ({
@@ -19,9 +25,9 @@ export const load: PageServerLoad = async () => {
 			host: new URL(addon.url).host,
 			name: addon.manifest?.name ?? new URL(addon.url).host,
 			version: addon.manifest?.version ?? null,
-			description: addon.manifest?.description ?? null,
 			logo: addon.manifest?.logo ?? null,
 			catalogs: addon.manifest?.catalogs.length ?? 0,
+			libraries: libraries.filter((library) => library.addonId === addon.id).length,
 			resources: (addon.manifest?.resources ?? []).map((resource) =>
 				typeof resource === 'string' ? resource : resource.name
 			),

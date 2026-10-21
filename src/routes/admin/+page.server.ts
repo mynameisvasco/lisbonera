@@ -7,6 +7,8 @@ import { enabledLibraries, listAddons } from '#lib/server/store.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
+	// The layout loads seeded addon manifests; wait for it so their libraries exist on the first visit.
+	await event.parent();
 	const [addons, libraries, passwords, sessions, accounts] = await Promise.all([
 		listAddons(env.DB),
 		enabledLibraries(env.DB),

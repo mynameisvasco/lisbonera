@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { toast } from 'svelte-sonner';
 
 	let { action = '?/reorder' }: { action?: string } = $props();
 
@@ -21,8 +22,12 @@
 	class="hidden"
 	bind:this={form}
 	use:enhance={() =>
-		async ({ update }) =>
-			update({ reset: false })}
+		async ({ result, update }) => {
+			if (result.type === 'failure' || result.type === 'error')
+				toast.error('Could not save the order');
+			// Reloading restores the stored order if saving failed.
+			await update({ reset: false });
+		}}
 >
 	<input type="hidden" name="ids" {value} />
 </form>

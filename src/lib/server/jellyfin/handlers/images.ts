@@ -35,7 +35,11 @@ async function imageUrl(c: JfContext, entry: IdEntry, type: string): Promise<str
  */
 async function image(c: JfContext): Promise<Response> {
 	const cache = await caches.open('lisbonera-images');
-	const key = new Request(`${c.origin}/items/${c.params.itemId}/images/${c.params.type}`);
+	// The tag changes with the source URL, so a new poster gets a new cache entry.
+	const tag = c.query.get('tag') ?? '';
+	const key = new Request(
+		`${c.origin}/items/${c.params.itemId}/images/${c.params.type}?tag=${tag}`
+	);
 	if (c.budget.take()) {
 		const hit = await cache.match(key);
 		if (hit) return hit;
@@ -48,8 +52,8 @@ async function image(c: JfContext): Promise<Response> {
 	const upstream = await fetch(url, {
 		headers: { 'user-agent': USER_AGENT },
 		cf: { cacheTtl: IMAGE_TTL, cacheEverything: true }
-	});
-	if (!upstream.ok || !upstream.body) return notFound();
+	}).catch(() => null);
+	if (!upstream?.ok || !upstream.body) return notFound();
 
 	const response = new Response(upstream.body, {
 		headers: {

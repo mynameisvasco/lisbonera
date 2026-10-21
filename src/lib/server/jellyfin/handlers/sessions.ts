@@ -46,6 +46,8 @@ function report(kind: 'start' | 'progress' | 'stop') {
 			(async () => {
 				const runtime = await runtimeOf(c, entry);
 				const position = Number(body.PositionTicks ?? 0);
+				// Without a runtime the progress is unknown; sending 0 on stop would never mark the item watched.
+				if (!runtime && event === 'stop' && position > 0) return;
 				const progress = runtime && position > 0 ? (position / runtime) * 100 : 0;
 				await runScrobble(c, (provider) => provider.scrobble(event, ref, progress));
 				if (event === 'stop') invalidateReads(ref);

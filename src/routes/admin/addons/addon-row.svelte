@@ -2,20 +2,14 @@
 	import { enhance } from '$app/forms';
 	import { createSortable } from '@dnd-kit/svelte/sortable';
 	import { toast } from 'svelte-sonner';
+	import ConfirmDialog from '#lib/components/confirm-dialog.svelte';
+	import DragHandle from '#lib/components/drag-handle.svelte';
 	import ToggleForm from '#lib/components/toggle-form.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { reportFailure } from '#lib/forms.js';
 	import { timeAgo } from '#lib/format.js';
-	import ArrowClockwiseIcon from 'phosphor-svelte/lib/ArrowClockwise';
-	import CopyIcon from 'phosphor-svelte/lib/Copy';
-	import DotsSixVerticalIcon from 'phosphor-svelte/lib/DotsSixVertical';
 	import DotsThreeIcon from 'phosphor-svelte/lib/DotsThree';
-	import InfoIcon from 'phosphor-svelte/lib/Info';
-	import PlayIcon from 'phosphor-svelte/lib/Play';
-	import StackIcon from 'phosphor-svelte/lib/Stack';
-	import TrashIcon from 'phosphor-svelte/lib/Trash';
-	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
 
 	interface Addon {
 		id: string;
@@ -23,16 +17,21 @@
 		host: string;
 		name: string;
 		version: string | null;
-		description: string | null;
 		logo: string | null;
 		catalogs: number;
+		libraries: number;
 		resources: string[];
 		enabled: boolean;
 		lastError: string | null;
 		checkedAt: number | null;
 	}
 
-	let { addon, index }: { addon: Addon; index: number } = $props();
+	let {
+		addon,
+		index,
+		count,
+		onMove
+	}: { addon: Addon; index: number; count: number; onMove: (delta: number) => void } = $props();
 
 	const sortable = createSortable({
 		get id() {
@@ -44,129 +43,104 @@
 	});
 
 	let logoFailed = $state(false);
+	let confirmRemove = $state(false);
 	let refreshForm = $state<HTMLFormElement>();
 	let removeForm = $state<HTMLFormElement>();
 
-	const streams = $derived(addon.resources.includes('stream'));
-	const meta = $derived(addon.resources.includes('meta'));
+	const capabilities = $derived(
+		[
+			addon.resources.includes('stream') && 'Streams',
+			addon.catalogs > 0 && `${addon.catalogs} ${addon.catalogs === 1 ? 'catalog' : 'catalogs'}`,
+			addon.resources.includes('meta') && 'Metadata',
+			addon.resources.includes('subtitles') && 'Subtitles'
+		].filter(Boolean)
+	);
 </script>
 
-<article
+<li
 	{@attach sortable.attach}
 	class={[
-		'flex items-start gap-3 rounded-2xl border border-border/70 bg-card p-3 pr-4 transition-shadow sm:items-center sm:gap-4',
-		sortable.isDragging && 'z-20 shadow-2xl ring-2 ring-primary/50',
-		!addon.enabled && 'opacity-60'
+		'flex items-center gap-3 bg-background py-3 sm:gap-4',
+		sortable.isDragging && 'relative z-20 rounded-md shadow-lg ring-1 ring-border'
 	]}
 >
-	<button
-		{@attach sortable.attachHandle}
-		class="flex size-8 shrink-0 cursor-grab items-center justify-center self-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
-		aria-label="Drag to change the priority of {addon.name}"
+	<DragHandle attach={sortable.attachHandle} label="Drag to change the priority of {addon.name}" />
+	<span
+		class="w-4 shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums"
+		title="Priority"
 	>
-		<DotsSixVerticalIcon class="size-4" weight="bold" />
-	</button>
+		{index + 1}
+	</span>
 
 	<div
-		class="hidden size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted sm:flex"
+		class="hidden size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted sm:flex"
 	>
 		{#if addon.logo && !logoFailed}
 			<img
 				src={addon.logo}
 				alt=""
-				class="size-full object-contain p-1.5"
+				class="size-full object-contain p-1"
 				onerror={() => (logoFailed = true)}
 			/>
 		{:else}
-			<span class="text-lg font-semibold text-muted-foreground"
+			<span class="text-xs font-medium text-muted-foreground"
 				>{addon.name.slice(0, 1).toUpperCase()}</span
 			>
 		{/if}
 	</div>
 
-	<div class="min-w-0 flex-1">
-		<div class="flex items-baseline gap-2">
-			<h3 class="truncate font-medium">{addon.name}</h3>
-			{#if addon.version}<span class="font-mono text-[11px] text-muted-foreground"
-					>v{addon.version}</span
+	<div class={['min-w-0 flex-1', !addon.enabled && 'opacity-50']}>
+		<p class="truncate text-sm">
+			<span class="font-medium">{addon.name}</span>
+			{#if addon.version}<span class="ml-1 font-mono text-[11px] text-muted-foreground"
+					>{addon.version}</span
 				>{/if}
-		</div>
-		<p class="truncate text-sm text-muted-foreground" title={addon.description ?? addon.url}>
-			{addon.description ?? addon.host}
 		</p>
-		<div class="mt-2 flex flex-wrap gap-1.5 text-xs">
-			{#if streams}
-				<span
-					class="inline-flex items-center gap-1 rounded-full bg-tram/15 px-2 py-0.5 font-medium text-amber-700 dark:text-tram"
-				>
-					<PlayIcon weight="fill" class="size-3" /> Streams
-				</span>
-			{/if}
-			{#if addon.catalogs > 0}
-				<span
-					class="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground"
-				>
-					<StackIcon class="size-3" />
-					{addon.catalogs}
-					{addon.catalogs === 1 ? 'catalog' : 'catalogs'}
-				</span>
-			{/if}
-			{#if meta}
-				<span
-					class="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground"
-				>
-					<InfoIcon class="size-3" /> Metadata
-				</span>
-			{/if}
-		</div>
+		<p class="truncate text-xs text-muted-foreground" title={addon.url}>
+			{capabilities.join(' · ') || addon.host}
+		</p>
 		{#if addon.lastError}
-			<p class="mt-2 flex items-start gap-1.5 text-xs text-terracotta">
-				<WarningCircleIcon class="mt-px size-3.5 shrink-0" />
-				<span class="min-w-0 break-words">{addon.lastError} · {timeAgo(addon.checkedAt)}</span>
+			<p class="mt-0.5 text-xs break-words text-terracotta">
+				{addon.lastError} · {timeAgo(addon.checkedAt).toLowerCase()}
 			</p>
 		{/if}
 	</div>
 
-	<div class="flex shrink-0 items-center gap-1 self-center">
-		<ToggleForm
-			action="?/toggle"
-			id={addon.id}
-			checked={addon.enabled}
-			label="Enable {addon.name}"
-		/>
-		<DropdownMenu.Root>
-			<DropdownMenu.Trigger>
-				{#snippet child({ props })}
-					<Button {...props} variant="ghost" size="icon-sm" aria-label="More for {addon.name}">
-						<DotsThreeIcon weight="bold" />
-					</Button>
-				{/snippet}
-			</DropdownMenu.Trigger>
-			<DropdownMenu.Content align="end">
-				<DropdownMenu.Item onSelect={() => refreshForm?.requestSubmit()}>
-					<ArrowClockwiseIcon /> Reload manifest
-				</DropdownMenu.Item>
-				<DropdownMenu.Item
-					onSelect={async () => {
-						await navigator.clipboard.writeText(`${addon.url}/manifest.json`);
-						toast.success('Manifest URL copied');
-					}}
-				>
-					<CopyIcon /> Copy manifest URL
-				</DropdownMenu.Item>
-				<DropdownMenu.Separator />
-				<DropdownMenu.Item
-					variant="destructive"
-					onSelect={() => {
-						if (confirm(`Remove ${addon.name}? Its catalog libraries are removed too.`))
-							removeForm?.requestSubmit();
-					}}
-				>
-					<TrashIcon /> Remove
-				</DropdownMenu.Item>
-			</DropdownMenu.Content>
-		</DropdownMenu.Root>
-	</div>
+	<ToggleForm action="?/toggle" id={addon.id} checked={addon.enabled} label="Enable {addon.name}" />
+
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger>
+			{#snippet child({ props })}
+				<Button {...props} variant="ghost" size="icon-sm" aria-label="Actions for {addon.name}">
+					<DotsThreeIcon weight="bold" />
+				</Button>
+			{/snippet}
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Content align="end">
+			<DropdownMenu.Item onSelect={() => refreshForm?.requestSubmit()}
+				>Reload manifest</DropdownMenu.Item
+			>
+			<DropdownMenu.Item
+				onSelect={async () => {
+					await navigator.clipboard.writeText(`${addon.url}/manifest.json`);
+					toast.success('Manifest URL copied');
+				}}
+			>
+				Copy manifest URL
+			</DropdownMenu.Item>
+			<DropdownMenu.Separator />
+			<DropdownMenu.Item disabled={index === 0} onSelect={() => onMove(-1)}
+				>Move up</DropdownMenu.Item
+			>
+			<DropdownMenu.Item disabled={index === count - 1} onSelect={() => onMove(1)}
+				>Move down</DropdownMenu.Item
+			>
+			<DropdownMenu.Separator />
+			<DropdownMenu.Item variant="destructive" onSelect={() => (confirmRemove = true)}
+				>Remove</DropdownMenu.Item
+			>
+		</DropdownMenu.Content>
+	</DropdownMenu.Root>
 
 	<form
 		method="POST"
@@ -180,4 +154,15 @@
 	<form method="POST" action="?/remove" use:enhance bind:this={removeForm} class="hidden">
 		<input type="hidden" name="id" value={addon.id} />
 	</form>
-</article>
+	<ConfirmDialog
+		bind:open={confirmRemove}
+		title="Remove {addon.name}?"
+		description={addon.libraries
+			? `Its ${addon.libraries} ${addon.libraries === 1 ? 'library is' : 'libraries are'} removed too.`
+			: 'Apps stop using its catalogs, metadata and streams.'}
+		confirmLabel={addon.libraries
+			? `Remove addon and ${addon.libraries} ${addon.libraries === 1 ? 'library' : 'libraries'}`
+			: 'Remove addon'}
+		onConfirm={() => removeForm?.requestSubmit()}
+	/>
+</li>

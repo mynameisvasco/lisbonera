@@ -1,17 +1,22 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { createSortable } from '@dnd-kit/svelte/sortable';
 	import Poster from '#lib/components/poster.svelte';
-	import XIcon from 'phosphor-svelte/lib/X';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import DotsSixVerticalIcon from 'phosphor-svelte/lib/DotsSixVertical';
+	import DotsThreeIcon from 'phosphor-svelte/lib/DotsThree';
 
 	let {
 		item,
 		index,
-		action
+		count,
+		onMove,
+		onRemove
 	}: {
 		item: { stremioId: string; name: string; poster: string | null };
 		index: number;
-		action: string;
+		count: number;
+		onMove: (delta: number) => void;
+		onRemove: () => void;
 	} = $props();
 
 	const sortable = createSortable({
@@ -22,29 +27,45 @@
 			return index;
 		}
 	});
+
+	const control =
+		'flex size-7 items-center justify-center rounded-md bg-black/60 text-white backdrop-blur-sm opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:size-9 [@media(hover:none)]:opacity-100';
 </script>
 
-<figure
-	{@attach sortable.attach}
-	class={[
-		'group relative cursor-grab touch-none active:cursor-grabbing',
-		sortable.isDragging && 'z-20 scale-105'
-	]}
->
-	<form method="POST" {action} use:enhance class="absolute top-1.5 right-1.5 z-10">
-		<input type="hidden" name="stremioId" value={item.stremioId} />
-		<button
-			type="submit"
-			class="flex size-7 items-center justify-center rounded-full bg-black/70 text-white opacity-0 backdrop-blur transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-			aria-label="Remove {item.name}"
-		>
-			<XIcon class="size-3.5" weight="bold" />
-		</button>
-	</form>
+<li {@attach sortable.attach} class={['group relative', sortable.isDragging && 'z-20']}>
 	<Poster
 		src={item.poster}
 		title={item.name}
-		class={sortable.isDragging ? 'shadow-2xl ring-2 ring-primary' : ''}
+		class={sortable.isDragging ? 'shadow-lg ring-2 ring-primary' : ''}
 	/>
-	<figcaption class="mt-2 truncate text-xs text-muted-foreground">{item.name}</figcaption>
-</figure>
+	<p class="mt-2 truncate text-xs text-muted-foreground" title={item.name}>{item.name}</p>
+
+	<button
+		type="button"
+		{@attach sortable.attachHandle}
+		class="absolute top-1.5 left-1.5 cursor-grab touch-none active:cursor-grabbing {control}"
+		aria-label="Drag to reorder {item.name}"
+	>
+		<DotsSixVerticalIcon class="size-4" weight="bold" />
+	</button>
+	<DropdownMenu.Root>
+		<DropdownMenu.Trigger
+			class="absolute top-1.5 right-1.5 {control}"
+			aria-label="Actions for {item.name}"
+		>
+			<DotsThreeIcon class="size-4" weight="bold" />
+		</DropdownMenu.Trigger>
+		<DropdownMenu.Content align="end">
+			<DropdownMenu.Item disabled={index === 0} onSelect={() => onMove(-1)}
+				>Move earlier</DropdownMenu.Item
+			>
+			<DropdownMenu.Item disabled={index === count - 1} onSelect={() => onMove(1)}
+				>Move later</DropdownMenu.Item
+			>
+			<DropdownMenu.Separator />
+			<DropdownMenu.Item variant="destructive" onSelect={onRemove}
+				>Remove from collection</DropdownMenu.Item
+			>
+		</DropdownMenu.Content>
+	</DropdownMenu.Root>
+</li>

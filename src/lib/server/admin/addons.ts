@@ -78,5 +78,6 @@ export async function loadPendingManifests(scope: Scope): Promise<void> {
 	const pending = (await listAddons(scope.env.DB)).filter(
 		(addon) => addon.manifest === null && addon.lastError === null
 	);
+	if (pending.length === 0) return;
 	await Promise.allSettled(pending.map((addon) => refreshAddon(scope, addon.id)));
 }

@@ -1,7 +1,21 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { authed, call, getJson, LIBRARY_ID, login, mockAddon, seed } from './helpers';
+import { http, HttpResponse } from 'msw';
+import {
+	ADDON_URL,
+	authed,
+	call,
+	getJson,
+	LIBRARY_ID,
+	login,
+	mockAddon,
+	movieStreams,
+	seed
+} from './helpers';
+import { network } from './network';
 
 interface Source {
+	Protocol: string;
+	IsRemote: boolean;
 	Id: string;
 	Name: string;
 	Path: string;
@@ -43,6 +57,26 @@ describe('PlaybackInfo', () => {
 		expect(first.Container).toBe('mkv');
 		expect(first.SupportsDirectPlay).toBe(true);
 		expect(first.SupportsTranscoding).toBe(false);
+		expect(first).toMatchObject({ Protocol: 'File', IsRemote: false });
+	});
+
+	it('does not cache an empty source list', async () => {
+		const { Items } = await getJson<{ Items: { Id: string }[] }>(
+			`/Items?ParentId=${LIBRARY_ID}`,
+			token
+		);
+		const charlie = Items[2].Id;
+		network.use(
+			http.get(`${ADDON_URL}/stream/:type/:id`, () => HttpResponse.json({}, { status: 503 }))
+		);
+		const empty = await call(`/Items/${charlie}/PlaybackInfo`, authed(token, { method: 'POST' }));
+		expect(await empty.json()).toMatchObject({ ErrorCode: 'NoCompatibleStream' });
+		network.resetHandlers();
+		mockAddon({ tt0000003: movieStreams });
+		const retry = (await (
+			await call(`/Items/${charlie}/PlaybackInfo`, authed(token, { method: 'POST' }))
+		).json()) as { MediaSources: Source[] };
+		expect(retry.MediaSources).toHaveLength(2);
 	});
 
 	it('no sources → NoCompatibleStream', async () => {

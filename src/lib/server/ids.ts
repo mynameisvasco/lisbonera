@@ -95,10 +95,16 @@ export class IdMap {
 			logo: input.logo ?? known?.logo ?? null,
 			runtimeTicks: input.runtimeTicks ?? known?.runtimeTicks ?? null
 		};
+		// A bare registration (only kind and id) carries nothing to store, and caching it would hide the art and
+		// names D1 already has for this id. `resolve` loads those when they are needed.
+		const bare =
+			!input.name && !input.poster && !input.background && !input.videoId && !input.runtimeTicks;
+		if (!known && bare) return entry;
 		const changed =
 			!known ||
 			(known.runtimeTicks === null && entry.runtimeTicks !== null) ||
-			(known.poster === null && entry.poster !== null);
+			(known.poster === null && entry.poster !== null) ||
+			(known.videoId === null && entry.videoId !== null);
 		memo.set(`id:${id}`, entry);
 		if (changed) this.#pending.set(id, entry);
 		return entry;
@@ -120,6 +126,19 @@ export class IdMap {
 		return entry;
 	}
 
+	/** Loads several ids with one query so later `resolve` calls hit the isolate cache. */
+	async preload(ids: string[]): Promise<void> {
+		const missing = ids.filter(
+			(id) => /^[0-9a-f]{32}$/.test(id) && !this.#pending.has(id) && !memo.get(`id:${id}`, MEMO_TTL)
+		);
+		if (missing.length === 0) return;
+		const { results } = await this.#db
+			.prepare(`SELECT * FROM id_map WHERE guid IN (${missing.map(() => '?').join(', ')})`)
+			.bind(...missing)
+			.all<IdRow>();
+		for (const row of results) memo.set(`id:${row.guid}`, fromRow(row));
+	}
+
 	async flush(): Promise<void> {
 		if (this.#pending.size === 0) return;
 		const entries = [...this.#pending.values()];
@@ -138,7 +157,8 @@ export class IdMap {
 							poster = coalesce(id_map.poster, excluded.poster),
 							video_id = coalesce(id_map.video_id, excluded.video_id)
 						WHERE (id_map.runtime_ticks IS NULL AND excluded.runtime_ticks IS NOT NULL)
-							OR (id_map.poster IS NULL AND excluded.poster IS NOT NULL)`
+							OR (id_map.poster IS NULL AND excluded.poster IS NOT NULL)
+							OR (id_map.video_id IS NULL AND excluded.video_id IS NOT NULL)`
 					)
 					.bind(
 						...chunk.flatMap((entry) => [

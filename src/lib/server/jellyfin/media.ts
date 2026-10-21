@@ -105,13 +105,16 @@ export interface SeasonGroup {
 	videos: (Video & { episode: number })[];
 }
 
-/** Groups episodes by season. Videos without a season or episode number cannot be addressed and are skipped. */
+/**
+ * Groups episodes by season. Videos without an episode number cannot be addressed and are skipped; a missing season
+ * (common in anime addons) means season 1.
+ */
 export function videosToSeasons(videos: Video[] | undefined): SeasonGroup[] {
 	const groups = new Map<number, Map<number, Video & { episode: number }>>();
 	for (const video of videos ?? []) {
-		const season = video.season;
 		const episode = video.episode ?? video.number;
-		if (!Number.isInteger(season) || !Number.isInteger(episode)) continue;
+		if (!Number.isInteger(episode)) continue;
+		const season = Number.isInteger(video.season) ? video.season : 1;
 		let group = groups.get(season!);
 		if (!group) groups.set(season!, (group = new Map()));
 		if (!group.has(episode!)) group.set(episode!, { ...video, episode: episode! });
@@ -179,9 +182,11 @@ export interface SortSpec {
 	descending: boolean;
 }
 
+/**
+ * Orders that can differ from the catalog's own. `SortName` and `DateCreated` are what clients send by default, so
+ * they keep the source order (the addon's ranking, or the order set for a collection) and the cheap paging.
+ */
 const SORTERS: Record<string, (a: MetaPreview, b: MetaPreview) => number> = {
-	sortname: (a, b) => a.name.localeCompare(b.name),
-	name: (a, b) => a.name.localeCompare(b.name),
 	productionyear: (a, b) =>
 		Number(String(a.releaseInfo ?? 0).slice(0, 4)) - Number(String(b.releaseInfo ?? 0).slice(0, 4)),
 	premieredate: (a, b) =>
@@ -192,7 +197,6 @@ const SORTERS: Record<string, (a: MetaPreview, b: MetaPreview) => number> = {
 /** Returns a comparator when the request asks for an order other than the catalog's own. */
 export function sorter(sort: SortSpec): ((a: Listed, b: Listed) => number) | null {
 	const keys = sort.by.map((key) => key.toLowerCase());
-	if (keys.includes('random')) return () => Math.random() - 0.5;
 	const comparators = keys.map((key) => SORTERS[key]).filter(Boolean);
 	if (comparators.length === 0) return null;
 	const direction = sort.descending ? -1 : 1;
@@ -238,12 +242,13 @@ export async function libraryPage(
 	library: Library,
 	start: number,
 	limit: number,
-	options: { sort?: SortSpec; types?: MediaType[]; all?: boolean } = {}
+	options: { sort?: SortSpec; types?: MediaType[]; all?: boolean; nameStartsWith?: string } = {}
 ): Promise<Page<Listed>> {
 	const fetchPage = await libraryFetcher(c, library);
-	const compare = options.sort ? sorter(options.sort) : null;
+	const compare = options.sort && library.kind === 'catalog' ? sorter(options.sort) : null;
 	const types = options.types ?? [];
-	const filtering = library.catalogType === 'mixed' && types.length > 0;
+	const prefix = options.nameStartsWith?.toLowerCase();
+	const filtering = (library.catalogType === 'mixed' && types.length > 0) || Boolean(prefix);
 
 	if (types.length > 0 && library.catalogType !== 'mixed' && !types.includes(library.catalogType)) {
 		return { items: [], total: 0 };
@@ -260,7 +265,11 @@ export async function libraryPage(
 		key: (item) => item.meta.id,
 		all: true
 	});
-	let items = types.length > 0 ? all.items.filter((item) => types.includes(item.type)) : all.items;
+	let items = all.items.filter(
+		(item) =>
+			(types.length === 0 || types.includes(item.type)) &&
+			(!prefix || item.meta.name.toLowerCase().startsWith(prefix))
+	);
 	if (compare) items = [...items].sort(compare);
 	return {
 		items: limit > 0 ? items.slice(start, start + limit) : items.slice(start),
@@ -270,7 +279,7 @@ export async function libraryPage(
 
 /** Concatenates every enabled library of the requested types; used for library-wide queries without a parent. */
 export async function allLibrariesPage(
-	c: JfContext,
+	c: Scope,
 	types: MediaType[],
 	start: number,
 	limit: number,
@@ -283,7 +292,11 @@ export async function allLibrariesPage(
 	const seen = new Set<string>();
 	const items: Listed[] = [];
 	for (const library of libraries) {
-		const page = await libraryPage(c, library, 0, 0, { types, all: true });
+		// One unreachable catalog must not take down the home screen or a full-library sync.
+		const page = await libraryPage(c, library, 0, 0, { types, all: true }).catch(() => ({
+			items: [] as Listed[],
+			total: 0
+		}));
 		for (const item of page.items) {
 			if (seen.has(item.meta.id)) continue;
 			seen.add(item.meta.id);

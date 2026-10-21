@@ -7,17 +7,18 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Lisbonera palette: azulejo cobalt as the primary, tram-28 yellow as a sparing accent,
- * limestone neutrals by day and Atlantic-night neutrals by night. Base tokens come from the
- * shadcn-svelte preset (Luma, mist, blue) and are retuned to the brand.
+ * Lisbonera palette. The chrome is near-monochrome so posters carry the colour.
+ * Cobalt marks interaction (primary actions, links, focus, active tab, switches); tram yellow
+ * lives only in the logo; terracotta is for errors. Base tokens come from the shadcn-svelte
+ * preset (Luma, mist, blue), retuned to the brand.
  */
 :root {
 	--brand-cobalt: oklch(0.488 0.217 264.4);
 	--brand-tram: oklch(0.86 0.17 87);
-	--brand-terracotta: oklch(0.64 0.15 40);
+	--brand-terracotta: oklch(0.52 0.15 40);
 	--success: oklch(0.62 0.15 155);
 
-	--background: oklch(0.985 0.003 95);
+	--background: oklch(0.99 0.002 95);
 	--foreground: oklch(0.2 0.03 262);
 	--card: oklch(1 0 0);
 	--card-foreground: oklch(0.2 0.03 262);
@@ -40,31 +41,32 @@
 	--chart-3: oklch(0.488 0.217 264.4);
 	--chart-4: oklch(0.86 0.17 87);
 	--chart-5: oklch(0.64 0.15 40);
-	--radius: 0.875rem;
+	--radius: 0.5rem;
 }
 
 .dark {
-	--brand-cobalt: oklch(0.45 0.2 264);
+	--brand-cobalt: oklch(0.488 0.217 264.4);
+	--brand-terracotta: oklch(0.72 0.14 40);
 	--success: oklch(0.72 0.15 155);
 
-	--background: oklch(0.145 0.02 264);
+	--background: oklch(0.15 0.01 264);
 	--foreground: oklch(0.97 0.005 262);
-	--card: oklch(0.185 0.024 264);
+	--card: oklch(0.18 0.012 264);
 	--card-foreground: oklch(0.97 0.005 262);
-	--popover: oklch(0.2 0.025 264);
+	--popover: oklch(0.2 0.014 264);
 	--popover-foreground: oklch(0.97 0.005 262);
-	--primary: oklch(0.62 0.19 262);
+	--primary: oklch(0.55 0.2 263);
 	--primary-foreground: oklch(0.99 0.005 262);
-	--secondary: oklch(0.24 0.025 264);
+	--secondary: oklch(0.235 0.014 264);
 	--secondary-foreground: oklch(0.95 0.008 262);
-	--muted: oklch(0.24 0.025 264);
-	--muted-foreground: oklch(0.7 0.025 262);
-	--accent: oklch(0.27 0.045 264);
+	--muted: oklch(0.235 0.014 264);
+	--muted-foreground: oklch(0.71 0.015 262);
+	--accent: oklch(0.26 0.02 264);
 	--accent-foreground: oklch(0.97 0.005 262);
 	--destructive: oklch(0.7 0.19 22);
 	--border: oklch(1 0 0 / 8%);
 	--input: oklch(1 0 0 / 12%);
-	--ring: oklch(0.62 0.19 262);
+	--ring: oklch(0.62 0.18 262);
 }
 
 @theme inline {
@@ -115,5 +117,16 @@
 	}
 	html {
 		@apply font-sans;
+	}
+	:focus-visible {
+		@apply outline-2 outline-offset-2 outline-ring;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			transition-duration: 0.01ms !important;
+		}
 	}
 }

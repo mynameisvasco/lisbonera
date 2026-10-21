@@ -14,7 +14,8 @@ import type {
 
 const API = 'https://api.trakt.tv';
 const REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob';
-const REFRESH_MARGIN = 24 * 3600 * 1000;
+/** Refresh this long before expiry; short enough to stay below Trakt's token lifetime. */
+const REFRESH_MARGIN = 3600 * 1000;
 
 interface TraktIds {
 	imdb?: string | null;
@@ -76,6 +77,8 @@ function historyBody(ref: MediaRef): Record<string, unknown> {
 }
 
 class TraktProvider implements ScrobbleProvider {
+	#refreshing: Promise<void> | null = null;
+
 	constructor(
 		private readonly credentials: ProviderCredentials,
 		private tokens: ProviderTokens,
@@ -83,7 +86,13 @@ class TraktProvider implements ScrobbleProvider {
 		private readonly fetcher: typeof fetch
 	) {}
 
-	private async refresh(): Promise<void> {
+	/** Concurrent calls share one refresh: Trakt rotates refresh tokens, so a second refresh would fail. */
+	private refresh(): Promise<void> {
+		this.#refreshing ??= this.doRefresh().finally(() => (this.#refreshing = null));
+		return this.#refreshing;
+	}
+
+	private async doRefresh(): Promise<void> {
 		const response = await this.fetcher(`${API}/oauth/token`, {
 			method: 'POST',
 			headers: headers(this.credentials.clientId),
@@ -108,9 +117,11 @@ class TraktProvider implements ScrobbleProvider {
 				headers: headers(this.credentials.clientId, this.tokens.accessToken),
 				body: body === undefined ? undefined : JSON.stringify(body)
 			});
+		const tokenUsed = this.tokens.accessToken;
 		let response = await send();
 		if (response.status === 401) {
-			await this.refresh();
+			// Another call may already have rotated the token while this request was in flight.
+			if (this.tokens.accessToken === tokenUsed) await this.refresh();
 			response = await send();
 		}
 		// 409 means the same scrobble was already recorded in the last hour.

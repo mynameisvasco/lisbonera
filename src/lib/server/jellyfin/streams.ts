@@ -87,8 +87,10 @@ export async function resolveSources(scope: Scope, entry: IdEntry): Promise<Reso
 		}
 	}
 
+	// An empty list usually means addons timed out; it is retried on the next request instead of being cached.
+	if (sources.length === 0) return sources;
 	memo.set(memoKey, sources);
-	if (sources.length > 0 && scope.budget.take()) {
+	if (scope.budget.take()) {
 		scope.exec.waitUntil(
 			cache
 				.put(

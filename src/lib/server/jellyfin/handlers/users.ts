@@ -1,5 +1,6 @@
 import type { AuthenticationResult } from '@jellyfin/sdk/lib/generated-client/models';
 import { clientInfo, login, logout } from '../../auth/client';
+import { randomHex } from '../../crypto';
 import { json, noContent, readJson, unauthorized } from '../../http';
 import { getDisplayPrefs, setDisplayPrefs } from '../../store';
 import type { JfContext } from '../context';
@@ -44,7 +45,7 @@ async function authenticateByName(c: JfContext): Promise<Response> {
 			},
 			RemoteEndPoint: ip,
 			PlayableMediaTypes: [],
-			Id: token.slice(0, 32),
+			Id: randomHex(16),
 			UserId: c.dto.userId,
 			UserName: c.username,
 			Client: info.client,
