@@ -4,12 +4,12 @@
 	import { toast } from 'svelte-sonner';
 	import ConfirmDialog from '#lib/components/confirm-dialog.svelte';
 	import DragHandle from '#lib/components/drag-handle.svelte';
+	import Row from '#lib/components/row.svelte';
+	import RowMenu from '#lib/components/row-menu.svelte';
 	import ToggleForm from '#lib/components/toggle-form.svelte';
-	import { Button } from '#lib/components/ui/button/index.js';
 	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
 	import { reportFailure } from '#lib/forms.js';
 	import { timeAgo } from '#lib/format.js';
-	import DotsThreeIcon from 'phosphor-svelte/lib/DotsThree';
 
 	interface Addon {
 		id: string;
@@ -57,66 +57,55 @@
 	);
 </script>
 
-<li
-	{@attach sortable.attach}
-	class={[
-		'flex items-center gap-3 bg-background py-3 sm:gap-4',
-		sortable.isDragging && 'relative z-20 rounded-md shadow-lg ring-1 ring-border'
-	]}
+<Row
+	attach={sortable.attach}
+	dragging={sortable.isDragging}
+	title={addon.name}
+	muted={!addon.enabled}
+	error={addon.lastError ? `${addon.lastError} · ${timeAgo(addon.checkedAt).toLowerCase()}` : null}
 >
-	<DragHandle attach={sortable.attachHandle} label="Drag to change the priority of {addon.name}" />
-	<span
-		class="w-4 shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums"
-		title="Priority"
-	>
-		{index + 1}
-	</span>
-
-	<div
-		class="hidden size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted sm:flex"
-	>
-		{#if addon.logo && !logoFailed}
-			<img
-				src={addon.logo}
-				alt=""
-				class="size-full object-contain p-1"
-				onerror={() => (logoFailed = true)}
-			/>
-		{:else}
-			<span class="text-xs font-medium text-muted-foreground"
-				>{addon.name.slice(0, 1).toUpperCase()}</span
-			>
-		{/if}
-	</div>
-
-	<div class={['min-w-0 flex-1', !addon.enabled && 'opacity-50']}>
-		<p class="truncate text-sm">
-			<span class="font-medium">{addon.name}</span>
-			{#if addon.version}<span class="ml-1 font-mono text-[11px] text-muted-foreground"
-					>{addon.version}</span
-				>{/if}
-		</p>
-		<p class="truncate text-xs text-muted-foreground" title={addon.url}>
+	{#snippet leading()}
+		<DragHandle
+			attach={sortable.attachHandle}
+			label="Drag to change the priority of {addon.name}"
+		/>
+		<span
+			class="w-4 shrink-0 text-right font-mono text-xs text-muted-foreground tabular-nums"
+			title="Priority"
+		>
+			{index + 1}
+		</span>
+	{/snippet}
+	{#snippet media()}
+		<div class="flex size-10 items-center justify-center overflow-hidden rounded-lg bg-muted">
+			{#if addon.logo && !logoFailed}
+				<img
+					src={addon.logo}
+					alt=""
+					class="size-full object-contain p-1.5"
+					onerror={() => (logoFailed = true)}
+				/>
+			{:else}
+				<span class="text-sm font-medium text-muted-foreground"
+					>{addon.name.slice(0, 1).toUpperCase()}</span
+				>
+			{/if}
+		</div>
+	{/snippet}
+	{#snippet meta()}
+		<span title={addon.url}>
+			{#if addon.version}<span class="font-mono">{addon.version}</span> ·{/if}
 			{capabilities.join(' · ') || addon.host}
-		</p>
-		{#if addon.lastError}
-			<p class="mt-0.5 text-xs break-words text-terracotta">
-				{addon.lastError} · {timeAgo(addon.checkedAt).toLowerCase()}
-			</p>
-		{/if}
-	</div>
-
-	<ToggleForm action="?/toggle" id={addon.id} checked={addon.enabled} label="Enable {addon.name}" />
-
-	<DropdownMenu.Root>
-		<DropdownMenu.Trigger>
-			{#snippet child({ props })}
-				<Button {...props} variant="ghost" size="icon-sm" aria-label="Actions for {addon.name}">
-					<DotsThreeIcon weight="bold" />
-				</Button>
-			{/snippet}
-		</DropdownMenu.Trigger>
-		<DropdownMenu.Content align="end">
+		</span>
+	{/snippet}
+	{#snippet trailing()}
+		<ToggleForm
+			action="?/toggle"
+			id={addon.id}
+			checked={addon.enabled}
+			label="Enable {addon.name}"
+		/>
+		<RowMenu label="Actions for {addon.name}">
 			<DropdownMenu.Item onSelect={() => refreshForm?.requestSubmit()}
 				>Reload manifest</DropdownMenu.Item
 			>
@@ -139,8 +128,8 @@
 			<DropdownMenu.Item variant="destructive" onSelect={() => (confirmRemove = true)}
 				>Remove</DropdownMenu.Item
 			>
-		</DropdownMenu.Content>
-	</DropdownMenu.Root>
+		</RowMenu>
+	{/snippet}
 
 	<form
 		method="POST"
@@ -165,4 +154,4 @@
 			: 'Remove addon'}
 		onConfirm={() => removeForm?.requestSubmit()}
 	/>
-</li>
+</Row>

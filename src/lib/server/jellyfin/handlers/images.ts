@@ -1,6 +1,7 @@
 import { notFound } from '../../http';
 import { itemGuid, type IdEntry } from '../../ids';
 import { USER_AGENT } from '../../scope';
+import { getLibrary, loadImage, UPLOAD_PREFIX } from '../../store';
 import type { JfContext } from '../context';
 import type { Router } from '../router';
 
@@ -45,8 +46,25 @@ async function image(c: JfContext): Promise<Response> {
 		if (hit) return hit;
 	}
 
-	const entry = await c.ids.resolve(c.params.itemId.replace(/-/g, ''));
-	const url = entry ? await imageUrl(c, entry, c.params.type) : null;
+	const id = c.params.itemId.toLowerCase().replace(/-/g, '');
+	const library = await getLibrary(c.env.DB, id);
+	let url: string | null;
+	if (library) {
+		url = c.params.type === 'primary' || c.params.type === 'thumb' ? library.image : null;
+		if (url?.startsWith(UPLOAD_PREFIX)) {
+			const stored = await loadImage(c.env.DB, url);
+			if (!stored) return notFound();
+			return cached(
+				c,
+				cache,
+				key,
+				new Response(stored.data, { headers: headers(stored.contentType) })
+			);
+		}
+	} else {
+		const entry = await c.ids.resolve(id);
+		url = entry ? await imageUrl(c, entry, c.params.type) : null;
+	}
 	if (!url || !c.budget.take()) return notFound();
 
 	const upstream = await fetch(url, {
@@ -55,12 +73,24 @@ async function image(c: JfContext): Promise<Response> {
 	}).catch(() => null);
 	if (!upstream?.ok || !upstream.body) return notFound();
 
-	const response = new Response(upstream.body, {
-		headers: {
-			'content-type': upstream.headers.get('content-type') ?? 'image/jpeg',
-			'cache-control': `public, max-age=${IMAGE_TTL}, immutable`
-		}
-	});
+	return cached(
+		c,
+		cache,
+		key,
+		new Response(upstream.body, {
+			headers: headers(upstream.headers.get('content-type') ?? 'image/jpeg')
+		})
+	);
+}
+
+function headers(contentType: string): HeadersInit {
+	return {
+		'content-type': contentType,
+		'cache-control': `public, max-age=${IMAGE_TTL}, immutable`
+	};
+}
+
+function cached(c: JfContext, cache: Cache, key: Request, response: Response): Response {
 	if (c.budget.take()) c.exec.waitUntil(cache.put(key, response.clone()).catch(() => undefined));
 	return response;
 }

@@ -1,13 +1,24 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import BackLink from './back-link.svelte';
 
-	let { title, meta, actions }: { title: string; meta?: Snippet | string; actions?: Snippet } =
-		$props();
+	let {
+		title,
+		meta,
+		actions,
+		back
+	}: {
+		title: string;
+		meta?: Snippet | string;
+		actions?: Snippet;
+		back?: { href: string; label: string };
+	} = $props();
 </script>
 
-<header class="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+{#if back}<BackLink {...back} />{/if}
+<header class="mb-10 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
 	<div class="min-w-0 space-y-1">
-		<h1 class="text-[28px] leading-8 font-semibold tracking-[-0.02em]">{title}</h1>
+		<h1 class="text-title text-balance">{title}</h1>
 		{#if typeof meta === 'string'}
 			<p class="text-sm text-muted-foreground">{meta}</p>
 		{:else if meta}

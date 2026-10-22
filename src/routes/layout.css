@@ -69,6 +69,23 @@
 	--ring: oklch(0.62 0.18 262);
 }
 
+/*
+ * Type scale. Every text size in the dashboard comes from here or from Tailwind's own scale
+ * (text-xs 12, text-sm 14, text-base 16), so headings and labels match across pages.
+ */
+@theme {
+	--text-2xs: 0.6875rem;
+	--text-2xs--line-height: 1rem;
+	--text-title: 1.75rem;
+	--text-title--line-height: 2rem;
+	--text-title--letter-spacing: -0.02em;
+	--text-title--font-weight: 600;
+	--text-label: 0.75rem;
+	--text-label--line-height: 1rem;
+	--text-label--letter-spacing: 0.08em;
+	--text-label--font-weight: 500;
+}
+
 @theme inline {
 	--color-cobalt: var(--brand-cobalt);
 	--color-tram: var(--brand-tram);
@@ -129,4 +146,11 @@
 			transition-duration: 0.01ms !important;
 		}
 	}
+}
+
+/* Small icon buttons laid over artwork (drag, menu, add). Hidden until hover on pointer devices. */
+@utility poster-control {
+	@apply flex size-8 items-center justify-center rounded-lg bg-black/55 text-white shadow-sm ring-1 ring-white/10 backdrop-blur-md transition-opacity;
+	@apply opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100;
+	@apply [@media(hover:none)]:size-9 [@media(hover:none)]:opacity-100;
 }

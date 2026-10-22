@@ -16,3 +16,14 @@ export function timeAgo(timestamp: number | null): string {
 	}
 	return 'Just now';
 }
+
+/** One label per library content type, used everywhere a type is shown. */
+export const TYPE_LABEL = {
+	movie: 'Movies',
+	series: 'Series',
+	mixed: 'Movies and series'
+} as const;
+
+export function plural(count: number, one: string, many = `${one}s`): string {
+	return `${count} ${count === 1 ? one : many}`;
+}

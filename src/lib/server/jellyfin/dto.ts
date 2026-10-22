@@ -310,7 +310,13 @@ export function libraryItem(ctx: DtoContext, library: Library): BaseItemDto {
 		LocationType: 'FileSystem',
 		Path: `/libraries/${library.id}`,
 		ProviderIds: {},
-		UserData: userData(library.id, library.id, undefined, null)
+		UserData: userData(library.id, library.id, undefined, null),
+		...(library.image
+			? {
+					ImageTags: { Primary: tag(library.image) },
+					PrimaryImageAspectRatio: library.imageAspect ?? 16 / 9
+				}
+			: {})
 	};
 }
 

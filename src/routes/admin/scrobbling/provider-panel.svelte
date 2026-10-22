@@ -6,6 +6,9 @@
 	import { toast } from 'svelte-sonner';
 	import ConfirmDialog from '#lib/components/confirm-dialog.svelte';
 	import CopyButton from '#lib/components/copy-button.svelte';
+	import Notice from '#lib/components/notice.svelte';
+	import Section from '#lib/components/section.svelte';
+	import SubmitButton from '#lib/components/submit-button.svelte';
 	import ToggleForm from '#lib/components/toggle-form.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Form from '#lib/components/ui/form/index.js';
@@ -131,22 +134,13 @@
 	};
 </script>
 
-<section aria-labelledby="provider-{provider.id}">
-	<div class="mb-6">
-		<h2 id="provider-{provider.id}" class="text-lg font-semibold tracking-tight">
-			{provider.name}
-		</h2>
-		<p
-			class={['text-sm', provider.account?.lastError ? 'text-terracotta' : 'text-muted-foreground']}
-		>
-			{stateLine}
-		</p>
-	</div>
+<Section id="provider-{provider.id}" title={provider.name}>
+	{#snippet description()}
+		<p class={provider.account?.lastError ? 'text-terracotta' : ''}>{stateLine}</p>
+	{/snippet}
 
 	{#if provider.notice && stage !== 'connected'}
-		<p class="mb-6 max-w-2xl border-l-2 border-terracotta pl-3 text-sm text-muted-foreground">
-			{provider.notice}
-		</p>
+		<Notice tone="warning" class="mb-6">{provider.notice}</Notice>
 	{/if}
 
 	{#if stage === 'connected' && provider.account}
@@ -233,9 +227,7 @@
 		<div class="flex max-w-2xl flex-wrap items-center gap-x-4 gap-y-3">
 			<form method="POST" action="?/connect" use:enhance={connectEnhance}>
 				<input type="hidden" name="provider" value={provider.id} />
-				<Button type="submit" disabled={connecting}
-					>{#if connecting}<Spinner />{/if} Connect {provider.name}</Button
-				>
+				<SubmitButton pending={connecting}>Connect {provider.name}</SubmitButton>
 			</form>
 			<p class="text-sm text-muted-foreground">
 				API app <span class="font-mono text-foreground">{provider.clientId?.slice(0, 8)}…</span>
@@ -290,13 +282,11 @@
 				</Form.Field>
 			</div>
 			<div class="flex gap-2">
-				<Form.Button disabled={$submitting}
-					>{#if $submitting}<Spinner />{/if} Save</Form.Button
-				>
+				<SubmitButton pending={$submitting}>Save</SubmitButton>
 				{#if provider.clientId}
 					<Button variant="ghost" onclick={() => (editing = false)}>Cancel</Button>
 				{/if}
 			</div>
 		</form>
 	{/if}
-</section>
+</Section>

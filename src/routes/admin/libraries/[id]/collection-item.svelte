@@ -27,9 +27,6 @@
 			return index;
 		}
 	});
-
-	const control =
-		'flex size-7 items-center justify-center rounded-md bg-black/60 text-white backdrop-blur-sm opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 [@media(hover:none)]:size-9 [@media(hover:none)]:opacity-100';
 </script>
 
 <li {@attach sortable.attach} class={['group relative', sortable.isDragging && 'z-20']}>
@@ -43,14 +40,14 @@
 	<button
 		type="button"
 		{@attach sortable.attachHandle}
-		class="absolute top-1.5 left-1.5 cursor-grab touch-none active:cursor-grabbing {control}"
+		class="absolute top-1.5 left-1.5 poster-control cursor-grab touch-none active:cursor-grabbing"
 		aria-label="Drag to reorder {item.name}"
 	>
 		<DotsSixVerticalIcon class="size-4" weight="bold" />
 	</button>
 	<DropdownMenu.Root>
 		<DropdownMenu.Trigger
-			class="absolute top-1.5 right-1.5 {control}"
+			class="absolute top-1.5 right-1.5 poster-control"
 			aria-label="Actions for {item.name}"
 		>
 			<DotsThreeIcon class="size-4" weight="bold" />
